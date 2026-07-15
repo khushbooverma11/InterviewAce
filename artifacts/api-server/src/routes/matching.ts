@@ -20,9 +20,30 @@ router.use(requireAuth);
 
 const MATCH_WINDOW_MS = 10 * 60 * 1000;
 
-function isCompatible(request: { skillLevel: string }, candidate: { skillLevel: string }) {
-  if (candidate.skillLevel === "any" || request.skillLevel === "any") return true;
-  return candidate.skillLevel === request.skillLevel;
+// Duration buckets: sessions are compatible if they're in the same bucket.
+// This prevents a 15-min user from being silently matched with a 60-min user.
+const DURATION_BUCKETS = [
+  [15, 30],   // short
+  [45, 60],   // long
+];
+
+function sameDurationBucket(a: number, b: number): boolean {
+  for (const bucket of DURATION_BUCKETS) {
+    if (bucket.includes(a) && bucket.includes(b)) return true;
+  }
+  return a === b; // exact match always passes
+}
+
+function isCompatible(
+  request: { skillLevel: string; durationMinutes: number },
+  candidate: { skillLevel: string; durationMinutes: number },
+) {
+  const skillOk =
+    candidate.skillLevel === "any" || request.skillLevel === "any"
+      ? true
+      : candidate.skillLevel === request.skillLevel;
+  const durationOk = sameDurationBucket(request.durationMinutes, candidate.durationMinutes);
+  return skillOk && durationOk;
 }
 
 /** Attempts to pair `request` with a compatible waiting request from a different user. */
@@ -68,12 +89,14 @@ async function tryMatch(request: {
 
     let fallbackPartner = null;
     if (!partner) {
+      // Fallback: same chatType but any topic. Never cross chat modes.
       const fallbackCandidates = await tx
         .select()
         .from(matchRequestsTable)
         .where(
           and(
             eq(matchRequestsTable.status, "waiting"),
+            eq(matchRequestsTable.chatType, request.chatType),
             ne(matchRequestsTable.userId, request.userId),
             gt(matchRequestsTable.createdAt, cutoff),
           ),
@@ -166,6 +189,19 @@ router.get("/discuss/match/:id", async (req, res): Promise<void> => {
   }
 
   if (request.status === "waiting") {
+    // Auto-expire requests older than the match window so the client
+    // gets an "expired" status instead of spinning forever.
+    const cutoff = new Date(Date.now() - MATCH_WINDOW_MS);
+    if (request.createdAt < cutoff) {
+      const [expired] = await db
+        .update(matchRequestsTable)
+        .set({ status: "expired" })
+        .where(eq(matchRequestsTable.id, request.id))
+        .returning();
+      res.json(GetMatchRequestResponse.parse(expired ?? request));
+      return;
+    }
+
     const matched = await tryMatch(request);
     res.json(GetMatchRequestResponse.parse(matched ?? request));
     return;
