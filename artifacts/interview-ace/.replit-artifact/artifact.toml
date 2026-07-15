@@ -14,10 +14,15 @@ localPort = 22694
 [services.development]
 run = "pnpm --filter @workspace/interview-ace run dev"
 
-[services.production]
-build = [ "pnpm", "--filter", "@workspace/interview-ace", "run", "build" ]
-run = [ "pnpm", "--filter", "@workspace/interview-ace", "run", "serve" ]
+[services.production.build]
+args = [ "pnpm", "--filter", "@workspace/interview-ace", "run", "build" ]
 
-[services.env]
+[services.production.run]
+args = [ "pnpm", "--filter", "@workspace/interview-ace", "run", "serve" ]
+
+[services.production.run.env]
 PORT = "22694"
 BASE_PATH = "/"
+
+[services.production.health.startup]
+path = "/"
