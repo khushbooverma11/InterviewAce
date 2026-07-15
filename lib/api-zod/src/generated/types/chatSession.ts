@@ -19,4 +19,8 @@ export interface ChatSession {
   startedAt: Date;
   /** @nullable */
   endedAt: Date | null;
+  /** True when this user is the WebRTC offer initiator (userA in the session). */
+  isCaller: boolean;
+  /** DB id of the partner user — used for WebRTC signaling routing. */
+  partnerId: number;
 }

@@ -30,6 +30,7 @@ import {
 import type { ChatMessageInputType } from '@workspace/api-client-react';
 import { AvatarBadge } from '@/components/discuss/AvatarBadge';
 import { MessageBubble } from '@/components/discuss/MessageBubble';
+import VoiceCallView from '@/components/discuss/VoiceCallView';
 
 const REPORT_REASONS = [
   { value: 'spam', label: 'Spam' },
@@ -189,6 +190,23 @@ export default function ChatSessionScreen() {
     );
   }
 
+  // ── Voice call ─────────────────────────────────────────────────────────
+  if (session.chatType === 'voice') {
+    return (
+      <>
+        <Stack.Screen options={{ headerShown: false }} />
+        <VoiceCallView
+          sessionId={sessionId}
+          isCaller={session.isCaller}
+          partnerHandle={session.partnerHandle}
+          partnerAvatarColor={session.partnerAvatarColor}
+          onEnd={() => router.replace('/(tabs)')}
+        />
+      </>
+    );
+  }
+
+  // ── Text chat ──────────────────────────────────────────────────────────
   return (
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: colors.background }]}

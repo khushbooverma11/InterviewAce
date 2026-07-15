@@ -7,6 +7,7 @@ import {
   sessionReportsTable,
   userBlocksTable,
   usersTable,
+  webrtcSignalsTable,
 } from "@workspace/db";
 import {
   ListChatSessionsResponse,
@@ -24,6 +25,7 @@ import {
   ReportChatSessionResponse,
   BlockSessionPartnerParams,
 } from "@workspace/api-zod";
+
 import { requireAuth } from "../middlewares/requireAuth";
 import { checkAndGrantAchievements } from "../lib/gamification";
 
@@ -56,6 +58,10 @@ async function serializeSession(session: typeof chatSessionsTable.$inferSelect, 
     partnerAvatarColor: partner?.avatarColor ?? "#7c6cff",
     startedAt: session.startedAt,
     endedAt: session.endedAt,
+    // isCaller: userA always initiates the WebRTC offer
+    isCaller: session.userAId === viewerId,
+    // partnerId needed for signaling recipient routing
+    partnerId,
   };
 }
 
@@ -83,7 +89,7 @@ router.get("/discuss/sessions/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Session not found" });
     return;
   }
-  res.json(GetChatSessionResponse.parse(await serializeSession(session, userId)));
+  res.json(await serializeSession(session, userId));
 });
 
 router.get("/discuss/sessions/:id/messages", async (req, res): Promise<void> => {
@@ -184,7 +190,7 @@ router.post("/discuss/sessions/:id/end", async (req, res): Promise<void> => {
     await checkAndGrantAchievements(userId, "session_completed");
   }
 
-  res.json(EndChatSessionResponse.parse(await serializeSession(updated, userId)));
+  res.json(await serializeSession(updated, userId));
 });
 
 router.post("/discuss/sessions/:id/report", async (req, res): Promise<void> => {
@@ -222,6 +228,90 @@ router.post("/discuss/sessions/:id/report", async (req, res): Promise<void> => {
       createdAt: report.createdAt,
     }),
   );
+});
+
+// ---------------------------------------------------------------------------
+// WebRTC Signaling
+// ---------------------------------------------------------------------------
+
+/**
+ * POST /discuss/sessions/:id/signal
+ * Store a signal record (offer / answer / ice-candidate / hangup) for the partner.
+ */
+router.post("/discuss/sessions/:id/signal", async (req, res): Promise<void> => {
+  const params = GetChatSessionParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const { type, payload } = req.body as { type?: string; payload?: string };
+  const VALID_TYPES = ["offer", "answer", "ice-candidate", "hangup"];
+  if (!type || !VALID_TYPES.includes(type) || typeof payload !== "string") {
+    res.status(400).json({ error: "type and payload are required" });
+    return;
+  }
+  const userId = req.appUser!.id;
+  const session = await loadSessionForUser(params.data.id, userId);
+  if (!session) {
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
+  const recipientId = session.userAId === userId ? session.userBId : session.userAId;
+
+  await db.insert(webrtcSignalsTable).values({
+    sessionId: params.data.id,
+    senderId: userId,
+    recipientId,
+    type,
+    payload,
+  });
+
+  res.status(201).json({ ok: true });
+});
+
+/**
+ * GET /discuss/sessions/:id/signals
+ * Return all unconsumed signals sent to the current user, then mark them consumed.
+ */
+router.get("/discuss/sessions/:id/signals", async (req, res): Promise<void> => {
+  const params = GetChatSessionParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const userId = req.appUser!.id;
+  const session = await loadSessionForUser(params.data.id, userId);
+  if (!session) {
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
+
+  const signals = await db
+    .select()
+    .from(webrtcSignalsTable)
+    .where(
+      and(
+        eq(webrtcSignalsTable.sessionId, params.data.id),
+        eq(webrtcSignalsTable.recipientId, userId),
+        eq(webrtcSignalsTable.consumed, false),
+      ),
+    )
+    .orderBy(asc(webrtcSignalsTable.createdAt));
+
+  if (signals.length > 0) {
+    const ids = signals.map((s) => s.id);
+    // Mark all consumed in one update (drizzle doesn't support WHERE IN directly, use a loop)
+    await Promise.all(
+      ids.map((id) =>
+        db
+          .update(webrtcSignalsTable)
+          .set({ consumed: true })
+          .where(eq(webrtcSignalsTable.id, id)),
+      ),
+    );
+  }
+
+  res.json(signals.map((s) => ({ id: s.id, type: s.type, payload: s.payload })));
 });
 
 router.post("/discuss/sessions/:id/block", async (req, res): Promise<void> => {
