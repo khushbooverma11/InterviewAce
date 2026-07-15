@@ -1,0 +1,215 @@
+This is an existing application, not a new project. Before making any changes, analyze the complete codebase and understand the current architecture, routing, authentication, database, APIs, components, and design system.
+
+Do NOT redesign, restructure, or regenerate the application. Continue from the existing implementation and make only the necessary changes to complete the remaining functionality.
+
+Primary Goal
+
+Transform this project into a fully functional, production-ready mobile application that is ready for deployment and app store publishing while preserving the existing UI, architecture, and user experience.
+
+1. Authentication Issues
+
+I believe there are issues with authentication.
+
+Please:
+
+Analyze the complete login and signup flow.
+Verify Clerk authentication is configured correctly.
+Check session management, protected routes, token validation, middleware, and logout flow.
+Identify why authentication is failing or behaving inconsistently.
+Fix the authentication with minimal code changes.
+Ensure the authentication flow works reliably in production.
+2. Clerk Configuration
+
+The Connect to Partner and Create Post features appear to have Clerk-related configuration issues.
+
+For development:
+
+Configure the required Clerk publishable key and secret key using your own development credentials or placeholder values where necessary.
+Clearly comment where I should replace them with my production keys later.
+Make these features functional instead of blocked by configuration errors.
+3. Anonymous Partner Matching
+
+Currently, the "Connect to Partner" feature only shows a beta/demo state.
+
+I want this to actually work.
+
+Implement a real matching flow.
+
+The system should:
+
+Match users based on selected topic.
+Match users based on skill level.
+Create a real anonymous chat session.
+Generate anonymous usernames.
+Generate anonymous avatars.
+Support multiple simultaneous users.
+Show loading while searching.
+Handle cases when no partner is available.
+Automatically connect when another user joins.
+
+If backend work is required, implement it using the existing project architecture.
+
+Do not leave this feature as a placeholder.
+
+4. Discussion Feed
+
+Make discussion posting fully functional.
+
+Users should be able to:
+
+Create a discussion
+View discussions
+Reply
+Like
+Delete their own discussion
+Report discussions
+Refresh automatically
+
+Persist data properly.
+
+5. Practice Tab
+
+Expand the Practice section.
+
+Add curated interview questions for:
+
+DSA
+
+Include topics such as:
+
+Arrays
+Strings
+Linked List
+Stack
+Queue
+Trees
+BST
+Graph
+Heap
+HashMap
+Sliding Window
+Two Pointers
+Greedy
+Dynamic Programming
+Backtracking
+Tries
+Low-Level Design
+
+Include interview questions on:
+
+Parking Lot
+Elevator System
+ATM
+Splitwise
+BookMyShow
+Snake and Ladder
+Chess
+Tic Tac Toe
+Logger
+Rate Limiter
+Cache
+Notification System
+
+Each question should contain:
+
+Problem statement
+Difficulty
+Tags
+Expected approach
+Interview hints
+Mark as solved
+Progress tracking
+6. Learn Tab
+
+Continue improving the Learn section.
+
+Only focus on:
+
+DSA
+Low-Level Design
+
+Each lesson should include:
+
+Concept explanation
+Interview importance
+Examples
+Code snippets
+Best practices
+Common mistakes
+Progress tracking
+7. Bug Fixes
+
+Review the entire application.
+
+Fix:
+
+Broken buttons
+Broken navigation
+Loading issues
+API failures
+Authentication errors
+Database issues
+State management bugs
+UI inconsistencies
+Responsiveness issues
+8. Production Readiness
+
+Prepare the project for production.
+
+Ensure:
+
+Proper environment variable usage
+Error handling
+Loading states
+Empty states
+Proper validation
+Secure authentication
+Clean API structure
+Optimized performance
+No hardcoded values except temporary development credentials
+9. Code Quality
+
+Without restructuring the project:
+
+Remove dead code
+Remove duplicate logic
+Improve readability
+Keep reusable components
+Follow existing folder structure
+Keep naming conventions consistent
+10. App Store Readiness
+
+Prepare the project so it is easy to publish later.
+
+Ensure:
+
+Clean project structure
+Production build succeeds
+No placeholder screens
+No beta labels
+No dummy functionality
+No broken links
+Consistent dark theme
+Responsive UI
+Stable navigation
+Proper assets organization
+Production-ready configuration where possible
+Development Rules
+Analyze the imported ZIP before making changes.
+Do not rewrite the application.
+Do not change the design language.
+Do not restructure the folder hierarchy.
+Modify only the necessary files.
+Reuse existing components whenever possible.
+Keep all current functionality intact.
+Complete unfinished features instead of replacing them.
+Maintain the existing premium UI.
+
+Before implementing changes:
+
+Explain what issues you found.
+List the files you will modify.
+Explain why those files need changes.
+Then implement the fixes incrementally.
+
+The final objective is a polished, fully functional, production-ready application that preserves the current architecture and design while completing all remaining functionality with minimal changes.

@@ -1,0 +1,1078 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: InterviewAce API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: profile
+    description: User profile and stats
+  - name: topics
+    description: Topic curriculum and progress
+  - name: patterns
+    description: DSA pattern practice
+  - name: discuss
+    description: Community posts and comments
+  - name: matching
+    description: Anonymous co-learner matching
+  - name: sessions
+    description: Discuss chat/voice sessions
+  - name: achievements
+    description: Achievements
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  # ---------- Profile ----------
+  /me:
+    get:
+      operationId: getMe
+      tags: [profile]
+      summary: Get current user profile (JIT provisioned on first call)
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+    patch:
+      operationId: updateMe
+      tags: [profile]
+      summary: Update current user profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserProfileUpdate"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+
+  /me/dashboard:
+    get:
+      operationId: getDashboard
+      tags: [profile]
+      summary: Aggregate dashboard summary (stats, streak, next-up topic, recent achievements)
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  # ---------- Topics ----------
+  /topics:
+    get:
+      operationId: listTopics
+      tags: [topics]
+      summary: List all topics with progress summary
+      responses:
+        "200":
+          description: List of topics
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TopicSummary"
+
+  /topics/{slug}:
+    get:
+      operationId: getTopic
+      tags: [topics]
+      summary: Get a topic with its steps and progress
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Topic detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TopicDetail"
+        "404":
+          description: Not found
+
+  /topics/{slug}/progress:
+    post:
+      operationId: updateTopicProgress
+      tags: [topics]
+      summary: Mark a topic step as complete (awards XP and updates streak)
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TopicProgressInput"
+      responses:
+        "200":
+          description: Updated progress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TopicProgress"
+        "404":
+          description: Not found
+
+  # ---------- DSA Patterns ----------
+  /patterns:
+    get:
+      operationId: listPatterns
+      tags: [patterns]
+      summary: List DSA patterns with mastery progress
+      responses:
+        "200":
+          description: List of patterns
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PatternSummary"
+
+  /patterns/{slug}:
+    get:
+      operationId: getPattern
+      tags: [patterns]
+      summary: Get a pattern with its practice questions
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Pattern detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatternDetail"
+        "404":
+          description: Not found
+
+  /patterns/{slug}/attempt:
+    post:
+      operationId: recordPatternAttempt
+      tags: [patterns]
+      summary: Record an attempt on a pattern question (updates mastery)
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatternAttemptInput"
+      responses:
+        "200":
+          description: Updated pattern progress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatternProgress"
+        "404":
+          description: Not found
+
+  # ---------- Discuss: posts ----------
+  /discuss/posts:
+    get:
+      operationId: listDiscussPosts
+      tags: [discuss]
+      summary: List community discuss posts
+      parameters:
+        - name: topicTag
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of posts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DiscussPost"
+    post:
+      operationId: createDiscussPost
+      tags: [discuss]
+      summary: Create a discuss post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DiscussPostInput"
+      responses:
+        "201":
+          description: Created post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscussPost"
+
+  /discuss/posts/{id}:
+    get:
+      operationId: getDiscussPost
+      tags: [discuss]
+      summary: Get a discuss post with comments
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Post detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscussPostDetail"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteDiscussPost
+      tags: [discuss]
+      summary: Delete own discuss post
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+
+  /discuss/posts/{id}/comments:
+    post:
+      operationId: createPostComment
+      tags: [discuss]
+      summary: Add a comment to a discuss post
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PostCommentInput"
+      responses:
+        "201":
+          description: Created comment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostComment"
+        "404":
+          description: Not found
+
+  /discuss/posts/{id}/upvote:
+    post:
+      operationId: toggleDiscussPostUpvote
+      tags: [discuss]
+      summary: Toggle upvote on a discuss post
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscussPost"
+        "404":
+          description: Not found
+
+  # ---------- Matching ----------
+  /discuss/match:
+    post:
+      operationId: createMatchRequest
+      tags: [matching]
+      summary: Request an anonymous co-learner match
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MatchRequestInput"
+      responses:
+        "201":
+          description: Match request created (may already be matched)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MatchRequestStatus"
+
+  /discuss/match/{id}:
+    get:
+      operationId: getMatchRequest
+      tags: [matching]
+      summary: Poll a match request's status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Match request status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MatchRequestStatus"
+        "404":
+          description: Not found
+    delete:
+      operationId: cancelMatchRequest
+      tags: [matching]
+      summary: Cancel a pending match request
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Cancelled
+        "404":
+          description: Not found
+
+  # ---------- Sessions ----------
+  /discuss/sessions:
+    get:
+      operationId: listChatSessions
+      tags: [sessions]
+      summary: List current user's chat sessions (active and past)
+      responses:
+        "200":
+          description: List of sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChatSession"
+
+  /discuss/sessions/{id}:
+    get:
+      operationId: getChatSession
+      tags: [sessions]
+      summary: Get a chat session with partner info
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Session detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatSession"
+        "404":
+          description: Not found
+
+  /discuss/sessions/{id}/messages:
+    get:
+      operationId: listSessionMessages
+      tags: [sessions]
+      summary: List messages in a session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChatMessage"
+        "404":
+          description: Not found
+    post:
+      operationId: sendSessionMessage
+      tags: [sessions]
+      summary: Send a message in a session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatMessageInput"
+      responses:
+        "201":
+          description: Created message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatMessage"
+        "404":
+          description: Not found
+
+  /discuss/sessions/{id}/end:
+    post:
+      operationId: endChatSession
+      tags: [sessions]
+      summary: End a chat session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Ended session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatSession"
+        "404":
+          description: Not found
+
+  /discuss/sessions/{id}/report:
+    post:
+      operationId: reportChatSession
+      tags: [sessions]
+      summary: Report the partner in a chat session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SessionReportInput"
+      responses:
+        "201":
+          description: Report filed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionReport"
+        "404":
+          description: Not found
+
+  /discuss/sessions/{id}/block:
+    post:
+      operationId: blockSessionPartner
+      tags: [sessions]
+      summary: Block the partner in a chat session from future matches
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Blocked
+        "404":
+          description: Not found
+
+  # ---------- Achievements ----------
+  /achievements:
+    get:
+      operationId: listAchievements
+      tags: [achievements]
+      summary: List all achievements with earned status for current user
+      responses:
+        "200":
+          description: List of achievements
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Achievement"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    # ---------- Profile ----------
+    UserProfile:
+      type: object
+      required:
+        [id, displayName, anonymousHandle, avatarColor, targetCompanies, createdAt]
+      properties:
+        id:
+          type: integer
+        displayName:
+          type: string
+        anonymousHandle:
+          type: string
+        avatarColor:
+          type: string
+        targetCompanies:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    UserProfileUpdate:
+      type: object
+      properties:
+        displayName:
+          type: string
+          minLength: 1
+        targetCompanies:
+          type: array
+          items:
+            type: string
+
+    UserStats:
+      type: object
+      required:
+        [xp, level, streakCount, longestStreak, lastActiveDate, totalTopicsCompleted, totalProblemsSolved]
+      properties:
+        xp:
+          type: integer
+        level:
+          type: integer
+        streakCount:
+          type: integer
+        longestStreak:
+          type: integer
+        lastActiveDate:
+          type: ["string", "null"]
+          format: date
+        totalTopicsCompleted:
+          type: integer
+        totalProblemsSolved:
+          type: integer
+
+    DashboardSummary:
+      type: object
+      required: [stats, nextTopic, recentAchievements, activeSessionCount]
+      properties:
+        stats:
+          $ref: "#/components/schemas/UserStats"
+        nextTopic:
+          oneOf:
+            - $ref: "#/components/schemas/TopicSummary"
+            - type: "null"
+        recentAchievements:
+          type: array
+          items:
+            $ref: "#/components/schemas/Achievement"
+        activeSessionCount:
+          type: integer
+
+    # ---------- Topics ----------
+    TopicSummary:
+      type: object
+      required:
+        [id, slug, title, description, category, order, iconName, difficulty, estimatedMinutes, totalSteps, completedSteps, isCompleted]
+      properties:
+        id:
+          type: integer
+        slug:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        order:
+          type: integer
+        iconName:
+          type: string
+        difficulty:
+          type: string
+          enum: [beginner, intermediate, advanced]
+        estimatedMinutes:
+          type: integer
+        totalSteps:
+          type: integer
+        completedSteps:
+          type: integer
+        isCompleted:
+          type: boolean
+
+    TopicStep:
+      type: object
+      required: [id, stepNumber, stepType, title, content, isCompleted]
+      properties:
+        id:
+          type: integer
+        stepNumber:
+          type: integer
+        stepType:
+          type: string
+          enum:
+            [
+              introduction,
+              real_life_example,
+              core_concepts,
+              industry_usage,
+              revision_notes,
+              interview_questions,
+              common_mistakes,
+              revision_card,
+            ]
+        title:
+          type: string
+        content:
+          type: string
+        isCompleted:
+          type: boolean
+
+    TopicDetail:
+      type: object
+      required: [id, slug, title, description, category, difficulty, estimatedMinutes, steps, currentStep]
+      properties:
+        id:
+          type: integer
+        slug:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        difficulty:
+          type: string
+          enum: [beginner, intermediate, advanced]
+        estimatedMinutes:
+          type: integer
+        steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/TopicStep"
+        currentStep:
+          type: integer
+
+    TopicProgressInput:
+      type: object
+      required: [stepNumber]
+      properties:
+        stepNumber:
+          type: integer
+
+    TopicProgress:
+      type: object
+      required: [topicId, completedStepNumbers, currentStep, isCompleted, xpAwarded]
+      properties:
+        topicId:
+          type: integer
+        completedStepNumbers:
+          type: array
+          items:
+            type: integer
+        currentStep:
+          type: integer
+        isCompleted:
+          type: boolean
+        xpAwarded:
+          type: integer
+
+    # ---------- DSA Patterns ----------
+    PatternSummary:
+      type: object
+      required:
+        [id, slug, name, description, timeComplexity, spaceComplexity, tags, masteryPercent, questionCount]
+      properties:
+        id:
+          type: integer
+        slug:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        timeComplexity:
+          type: string
+        spaceComplexity:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        masteryPercent:
+          type: integer
+        questionCount:
+          type: integer
+
+    PatternQuestion:
+      type: object
+      required: [id, title, difficulty, description, hint, isSolved]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        difficulty:
+          type: string
+          enum: [easy, medium, hard]
+        description:
+          type: string
+        hint:
+          type: string
+        isSolved:
+          type: boolean
+
+    PatternDetail:
+      type: object
+      required:
+        [id, slug, name, description, recognitionClues, timeComplexity, spaceComplexity, tags, masteryPercent, questions]
+      properties:
+        id:
+          type: integer
+        slug:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        recognitionClues:
+          type: string
+        timeComplexity:
+          type: string
+        spaceComplexity:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        masteryPercent:
+          type: integer
+        questions:
+          type: array
+          items:
+            $ref: "#/components/schemas/PatternQuestion"
+
+    PatternAttemptInput:
+      type: object
+      required: [questionId, solved]
+      properties:
+        questionId:
+          type: integer
+        solved:
+          type: boolean
+
+    PatternProgress:
+      type: object
+      required: [patternId, masteryPercent, questionsAttempted, questionsSolved]
+      properties:
+        patternId:
+          type: integer
+        masteryPercent:
+          type: integer
+        questionsAttempted:
+          type: integer
+        questionsSolved:
+          type: integer
+
+    # ---------- Discuss ----------
+    DiscussPost:
+      type: object
+      required:
+        [id, authorHandle, avatarColor, type, title, content, topicTag, upvoteCount, commentCount, isUpvotedByMe, isMine, createdAt]
+      properties:
+        id:
+          type: integer
+        authorHandle:
+          type: string
+        avatarColor:
+          type: string
+        type:
+          type: string
+          enum: [question, discussion, resource]
+        title:
+          type: string
+        content:
+          type: string
+        topicTag:
+          type: ["string", "null"]
+        upvoteCount:
+          type: integer
+        commentCount:
+          type: integer
+        isUpvotedByMe:
+          type: boolean
+        isMine:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    DiscussPostInput:
+      type: object
+      required: [type, title, content]
+      properties:
+        type:
+          type: string
+          enum: [question, discussion, resource]
+        title:
+          type: string
+          minLength: 1
+        content:
+          type: string
+          minLength: 1
+        topicTag:
+          type: string
+
+    PostComment:
+      type: object
+      required: [id, postId, authorHandle, avatarColor, content, createdAt]
+      properties:
+        id:
+          type: integer
+        postId:
+          type: integer
+        authorHandle:
+          type: string
+        avatarColor:
+          type: string
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    PostCommentInput:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          minLength: 1
+
+    DiscussPostDetail:
+      type: object
+      required: [post, comments]
+      properties:
+        post:
+          $ref: "#/components/schemas/DiscussPost"
+        comments:
+          type: array
+          items:
+            $ref: "#/components/schemas/PostComment"
+
+    # ---------- Matching ----------
+    MatchRequestInput:
+      type: object
+      required: [topic, skillLevel, chatType, durationMinutes]
+      properties:
+        topic:
+          type: string
+        skillLevel:
+          type: string
+          enum: [beginner, intermediate, advanced, any]
+        chatType:
+          type: string
+          enum: [text, voice]
+        durationMinutes:
+          type: integer
+        language:
+          type: string
+        anonymous:
+          type: boolean
+
+    MatchRequestStatus:
+      type: object
+      required: [id, status, topic, chatType, durationMinutes, createdAt]
+      properties:
+        id:
+          type: integer
+        status:
+          type: string
+          enum: [waiting, matched, cancelled, expired]
+        topic:
+          type: string
+        chatType:
+          type: string
+          enum: [text, voice]
+        durationMinutes:
+          type: integer
+        sessionId:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+          format: date-time
+
+    # ---------- Sessions ----------
+    ChatSession:
+      type: object
+      required:
+        [id, topic, chatType, durationMinutes, status, partnerHandle, partnerAvatarColor, startedAt, endedAt]
+      properties:
+        id:
+          type: integer
+        topic:
+          type: string
+        chatType:
+          type: string
+          enum: [text, voice]
+        durationMinutes:
+          type: integer
+        status:
+          type: string
+          enum: [active, ended]
+        partnerHandle:
+          type: string
+        partnerAvatarColor:
+          type: string
+        startedAt:
+          type: string
+          format: date-time
+        endedAt:
+          type: ["string", "null"]
+          format: date-time
+
+    ChatMessage:
+      type: object
+      required: [id, sessionId, isMine, type, content, createdAt]
+      properties:
+        id:
+          type: integer
+        sessionId:
+          type: integer
+        isMine:
+          type: boolean
+        type:
+          type: string
+          enum: [text, code, system]
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    ChatMessageInput:
+      type: object
+      required: [type, content]
+      properties:
+        type:
+          type: string
+          enum: [text, code]
+        content:
+          type: string
+          minLength: 1
+
+    SessionReportInput:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          enum: [spam, harassment, inappropriate, off_topic, other]
+        details:
+          type: string
+
+    SessionReport:
+      type: object
+      required: [id, sessionId, reason, createdAt]
+      properties:
+        id:
+          type: integer
+        sessionId:
+          type: integer
+        reason:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    # ---------- Achievements ----------
+    Achievement:
+      type: object
+      required: [id, code, title, description, iconName, isEarned, earnedAt]
+      properties:
+        id:
+          type: integer
+        code:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        iconName:
+          type: string
+        isEarned:
+          type: boolean
+        earnedAt:
+          type: ["string", "null"]
+          format: date-time

@@ -1,0 +1,208 @@
+If you're using an AI UI generator like Figma AI, Lovable, v0, Bolt, or Cursor, here's a detailed prompt that will generate a modern discussion page similar to PeerUp while matching your requirements.
+
+---
+
+**Prompt:**
+
+> Design a modern, minimal, and student-focused **"Discuss"** section for a learning platform called **PeerUpMin**.
+>
+> The goal is to help learners connect **anonymously** with other learners to discuss coding problems, interview preparation, system design, DSA, career guidance, or study topics.
+>
+> ### Overall Theme
+>
+> * Clean and modern UI
+> * Soft blue and purple accent colors
+> * Rounded cards (16px radius)
+> * Glassmorphism/light shadows
+> * Mobile-first responsive design
+> * Friendly, community-driven feel
+> * Similar to Discord + Reddit + PeerUp but simpler
+>
+> ### Top Section
+>
+> * Title: **Discuss**
+> * Subtitle:
+>   *"Connect anonymously with learners around the world and grow together."*
+> * Search bar
+> * Filter chips:
+>
+>   * DSA
+>   * System Design
+>   * Frontend
+>   * Backend
+>   * Java
+>   * Python
+>   * Interview Prep
+>   * Career
+>   * Aptitude
+>
+> ---
+>
+> ### Anonymous Matching Card
+>
+> A prominent card with illustration.
+>
+> Heading:
+> **Find a Study Partner**
+>
+> Description:
+> *Connect instantly with another learner anonymously.*
+>
+> User preferences:
+>
+> * Preferred topic dropdown
+> * Skill Level
+>
+>   * Beginner
+>   * Intermediate
+>   * Advanced
+> * Preferred Language
+> * Conversation type
+>
+>   * Text Chat
+>   * Voice Chat
+> * Session duration
+>
+>   * 15 mins
+>   * 30 mins
+>   * 1 hour
+>
+> Large primary CTA:
+>
+> **Find Anonymous Learner**
+>
+> While matching, show an animated loading state:
+>
+> "Finding someone learning the same topic..."
+>
+> ---
+>
+> ### Suggested Learners
+>
+> Show cards with anonymous identities instead of real names.
+>
+> Example:
+>
+> 🟢 CuriousCoder42
+>
+> Intermediate Java
+>
+> Solved 350 DSA Problems
+>
+> Preparing for SDE Interviews
+>
+> Interests:
+> Arrays • Trees • DP
+>
+> Buttons:
+>
+> * Connect
+> * View Interests
+>
+> No personal information should be visible.
+>
+> ---
+>
+> ### Active Conversations
+>
+> Display current anonymous chats.
+>
+> Each card shows:
+>
+> * Anonymous avatar
+> * Alias
+> * Last message
+> * Topic
+> * Online indicator
+> * Continue Chat button
+>
+> ---
+>
+> ### Community Discussion Feed
+>
+> Similar to Reddit.
+>
+> Each post contains:
+>
+> * Anonymous avatar
+> * Anonymous username
+> * Topic tag
+> * Question
+> * Upvotes
+> * Comments
+> * Reply button
+>
+> Example:
+>
+> "Can someone explain Kadane's Algorithm intuitively?"
+>
+> ---
+>
+> ### Floating Action Button
+>
+> Bottom-right:
+>
+> **Start Discussion**
+>
+> Opens a modal where the user selects:
+>
+> * Topic
+> * Question
+> * Tags
+> * Anonymous toggle (enabled by default)
+>
+> ---
+>
+> ### Chat Screen
+>
+> Modern messaging interface with:
+>
+> * Anonymous identities only
+> * Typing indicator
+> * Emoji picker
+> * Code block support
+> * File sharing for code/images
+> * Voice call button
+> * Report user
+> * End session
+>
+> After ending the session:
+>
+> * Option to reconnect
+> * Rate conversation
+> * Give feedback
+>
+> ---
+>
+> ### Safety Features
+>
+> * Anonymous by default
+> * No phone numbers or email addresses
+> * AI moderation for abusive content
+> * Report and Block options
+> * Friendly community guidelines banner
+>
+> ---
+>
+> ### Empty State
+>
+> Illustration of students studying.
+>
+> Text:
+>
+> "No active discussions yet. Start the first conversation and help someone learn."
+>
+> ---
+>
+> ### Visual Style
+>
+> * Modern SaaS design
+> * Soft gradients
+> * Rounded buttons
+> * Large typography
+> * Smooth animations
+> * Clean spacing
+> * Professional student community aesthetic
+> * Inspired by PeerUp, Discord, Reddit, and Notion, but with a unique identity focused on collaborative learning.
+
+This prompt should produce a polished discussion experience centered around anonymous peer learning, with matchmaking, topic-based discussions, and an engaging chat interface suitable for your app.

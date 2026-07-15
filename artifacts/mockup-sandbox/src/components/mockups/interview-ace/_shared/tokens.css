@@ -1,0 +1,36 @@
+/* InterviewAce design tokens — "Command Deck" concept
+   A dark mission-console aesthetic: obsidian surfaces, violet-to-cyan
+   energy accents, radar-like progress rings, monospace data readouts.
+   Every page + the shared shell imports this file explicitly. */
+
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+.ia-scope {
+  --ia-bg: #0b0d14;
+  --ia-bg-elevated: #12141f;
+  --ia-surface: #171a28;
+  --ia-surface-2: #1e2233;
+  --ia-border: #2a2e42;
+  --ia-border-soft: #222536;
+
+  --ia-text: #f2f3f8;
+  --ia-text-dim: #9497ad;
+  --ia-text-faint: #656a83;
+
+  --ia-accent: #7c6cff;
+  --ia-accent-2: #4fd8e8;
+  --ia-accent-soft: rgba(124, 108, 255, 0.16);
+  --ia-warn: #ff9f5a;
+  --ia-good: #3ddc97;
+  --ia-danger: #ff6b81;
+
+  --ia-gradient: linear-gradient(135deg, #7c6cff 0%, #4fd8e8 100%);
+
+  font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  background: var(--ia-bg);
+  color: var(--ia-text);
+}
+
+.ia-mono {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+}

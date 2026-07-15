@@ -1,0 +1,321 @@
+Build a Production-Ready Mobile App: InterviewAce
+
+You are an expert Product Manager, UI/UX Designer, Mobile App Architect, React Native Developer, Backend Architect, and AI Engineer.
+
+Your goal is to build a production-ready Android & iOS mobile application that can be published on the Google Play Store and Apple App Store.
+
+The application must follow industry best practices, Clean Architecture, SOLID principles, secure coding standards, scalable architecture, and Google Play policies.
+
+Do not generate a demo application.
+
+Generate a real production-ready application.
+
+---
+
+App Name
+
+InterviewAce (temporary)
+
+Tagline:
+
+Learn → Revise → Practice → Discuss → Crack Interviews
+
+---
+
+Vision
+
+Current interview preparation platforms suffer from one or more of these problems:
+
+- Too much theory
+- Poor UI
+- Random learning path
+- No real-life explanations
+- No revision system
+- No peer learning
+- No interview-focused roadmap
+
+InterviewAce should become the Duolingo for Software Engineers, where users can learn, revise, practice, and connect with other professionals.
+
+---
+
+Target Users
+
+- College Students
+- Freshers
+- Software Engineers
+- Backend Developers
+- Full Stack Developers
+- Professionals preparing for Product-Based Companies
+
+Target Companies:
+
+Amazon
+
+Google
+
+Microsoft
+
+Goldman Sachs
+
+Atlassian
+
+Adobe
+
+Walmart
+
+Flipkart
+
+Uber
+
+Oracle
+
+Salesforce
+
+Intuit
+
+Paytm
+
+PhonePe
+
+Razorpay
+
+---
+
+Tech Stack
+
+Frontend
+
+- React Native (Expo)
+- TypeScript
+- NativeWind
+- React Navigation
+- React Query
+- Zustand
+
+Backend
+
+- Java 21
+- Spring Boot
+- Spring Security
+- JWT Authentication
+- Spring Data JPA
+- PostgreSQL
+- Redis
+
+Storage
+
+- Firebase Storage
+
+Authentication
+
+- Firebase Authentication
+
+Notifications
+
+- Firebase Cloud Messaging
+
+Voice Calling
+
+- LiveKit (preferred) or WebRTC
+
+Deployment
+
+- Docker
+- Kubernetes
+
+---
+
+UI
+
+Premium UI inspired by:
+
+- Duolingo
+- Notion
+- Linear
+- LeetCode
+
+Features
+
+- Dark Mode
+- Light Mode
+- Beautiful Cards
+- Smooth Animations
+- Bottom Navigation
+- Search
+- Progress Rings
+- Modern Typography
+- Responsive Layout
+- Accessibility support
+
+---
+
+Learning Philosophy
+
+Do NOT teach unnecessary theory.
+
+Teach only what is important for interviews and real software development.
+
+Every topic must follow this exact structure.
+
+---
+
+Step 1
+
+Introduction
+
+- What is it?
+- Why do we need it?
+- Why interviewers ask this?
+
+---
+
+Step 2
+
+Real-Life Example
+
+Explain using simple examples.
+
+Example
+
+HashMap → Library index
+
+Queue → Movie ticket counter
+
+Stack → Stack of plates
+
+Heap → Hospital emergency queue
+
+Cache → Refrigerator
+
+Thread → Restaurant chefs
+
+Semaphore → Traffic signal
+
+Kafka → Courier delivery pipeline
+
+Redis → Frequently accessed cupboard
+
+---
+
+Step 3
+
+Core Concepts
+
+Only interview-relevant concepts.
+
+Short and crisp.
+
+---
+
+Step 4
+
+Real Industry Usage
+
+Explain where companies actually use it.
+
+---
+
+Step 5
+
+Quick Revision Notes
+
+Bullet points.
+
+---
+
+Step 6
+
+Interview Questions
+
+Include:
+
+- Beginner
+- Intermediate
+- Advanced
+
+Provide concise model answers.
+
+---
+
+Step 7
+
+Common Interview Mistakes
+
+Explain mistakes candidates usually make.
+
+---
+
+Step 8
+
+One-Minute Revision Card
+
+A concise summary for quick revision.
+
+---
+
+Modules
+
+Java
+
+Include
+
+- OOP
+- Collections
+- JVM
+- Exception Handling
+- Multithreading
+- Streams
+- Functional Interfaces
+- Generics
+- String
+- Memory Management
+- Garbage Collection
+
+---
+
+DSA
+
+Do NOT simply list coding questions.
+
+Teach Pattern Recognition.
+
+Patterns
+
+- Arrays
+- Strings
+- Hashing
+- Two Pointers
+- Sliding Window
+- Prefix Sum
+- Binary Search
+- Linked List
+- Stack
+- Queue
+- Heap
+- Trees
+- BST
+- Graph
+- BFS
+- DFS
+- Greedy
+- Backtracking
+- Dynamic Programming
+- Trie
+- Union Find
+- Segment Tree
+- Bit Manipulation
+- Monotonic Stack
+- Monotonic Queue
+
+For every pattern include
+
+- When to use
+- Recognition clues
+- Template
+- Dry Run
+- Complexity
+- Tricks
+- Common mistakes
+- Most asked interview questions
+- Company Tags
+- Diffic…

@@ -1,0 +1,124 @@
+Do not redesign the entire app. Only redesign and enhance the existing Discuss tab while keeping the current design system, colors, typography, spacing, and components consistent with the rest of the application.
+
+The goal of the Discuss section is to help learners anonymously connect with another learner for coding discussions, interview preparation, system design, career guidance, and study sessions.
+
+1. Hero Section
+
+At the top of the Discuss page, add a clean hero section with:
+
+Title: Discuss with Learners
+Subtitle: "Find a study partner, ask questions, or collaborate anonymously with learners preparing for similar goals."
+A prominent Find a Co-Learner button.
+2. Anonymous Co-Learner Matching
+
+Add a card where users can find a study partner.
+
+The user can select:
+
+Topic (DSA, System Design, Frontend, Backend, Java, Python, Machine Learning, Interview Prep, Career)
+Skill Level (Beginner, Intermediate, Advanced)
+Preferred Chat Type (Text or Voice)
+Session Duration (15 min, 30 min, 1 hour)
+Language preference
+
+Clicking Find Co-Learner starts an animated matching process.
+
+During matching show:
+
+Finding another learner with similar interests...
+
+Once matched, open an anonymous chat session.
+
+3. Anonymous Identity
+
+Never expose personal information.
+
+Every learner gets:
+
+Random avatar
+Anonymous username (CuriousCoder42, BinaryWizard, AlgoNinja, etc.)
+Skill level
+Topics of interest
+Problems solved (optional)
+
+No real names, emails, or profile pictures should be displayed.
+
+4. Chat Interface
+
+After matching, open a modern chat interface.
+
+Features:
+
+Real-time messaging
+Typing indicator
+Emoji support
+Code snippets with syntax highlighting
+Image/file sharing
+Voice call option
+End Session button
+Report user
+Block user
+
+Keep the chat UI consistent with the app's existing design system.
+
+5. Community Discussions
+
+Below the matching section, display a discussion feed where learners can post questions anonymously.
+
+Each discussion card should include:
+
+Anonymous avatar
+Anonymous username
+Topic tag
+Question
+Upvotes
+Number of replies
+Reply button
+
+Example:
+How do you approach Dynamic Programming problems?
+
+6. Active Sessions
+
+Show ongoing conversations with:
+
+Anonymous username
+Topic
+Last message
+Online status
+Continue Chat button
+7. Floating Action Button
+
+Add a floating Start Discussion button.
+
+Opening it shows a modal with:
+
+Discussion title
+Question
+Topic
+Tags
+Anonymous toggle (enabled by default)
+8. Safety & Moderation
+
+Include:
+
+AI content moderation
+Report user
+Block user
+Community guidelines banner
+Anonymous by default
+9. Empty State
+
+If no discussions exist, show:
+
+"No discussions yet. Be the first learner to start a conversation!"
+
+with an illustration and a Start Discussion button.
+
+Design Requirements
+Do not change the overall application layout or navigation.
+Reuse the existing design system, components, fonts, spacing, and colors.
+Add smooth micro-interactions and loading animations.
+Ensure the page is fully responsive for desktop, tablet, and mobile.
+The new Discuss experience should feel like a natural extension of the existing application rather than a separate module.
+Focus on creating a welcoming, collaborative environment where learners can safely connect and learn together anonymously.

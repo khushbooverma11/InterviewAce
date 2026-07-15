@@ -1,0 +1,5 @@
+- [Discuss feature architecture](discuss-feature.md) — Complete Discuss feature built; screens, components, nav done. Clerk auth wired.
+- [Clerk no-key crash](clerk-no-key-crash.md) — Never import @clerk/expo at module top-level; gate with AUTH_ENABLED flag via require() to prevent native module crash on web.
+- [Horizontal ScrollView height](horizontal-scrollview-height.md) — On web, horizontal ScrollView inside flex col must be wrapped in a fixed-height View to avoid chip stretching.
+- [Clerk auth token getter platform split](clerk-auth-token-platform.md) — On web, never call setAuthTokenGetter; browser sends Clerk cookie automatically. Native only needs the bearer token getter.
+- [DB migrations must be run manually](db-migrations.md) — Run `pnpm --filter @workspace/db push` (or push-force) after any schema changes; tables do not auto-create on server start.

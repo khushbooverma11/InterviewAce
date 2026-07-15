@@ -1,0 +1,60 @@
+Prompt
+
+I have imported this project as a ZIP from another Replit account. This is an existing application that is partially complete. Do not regenerate or redesign the project. First, analyze the existing codebase and continue development using the current architecture, components, styling, routing, and state management.
+
+Immediate Goals
+
+1. Fix the Discuss section
+
+The Discuss section has already been implemented, but there are a few UI/UX issues. Review the implementation and fix any inconsistencies or bugs while preserving the current design language.
+
+Specifically:
+
+Fix layout, spacing, alignment, and responsiveness issues.
+Ensure all buttons, cards, and chat components work correctly.
+Make the page feel polished and production-ready.
+Do not redesign it from scratch—improve the existing implementation.
+
+2. Redesign the Learn tab
+
+I want the Learn tab to have the same premium look and experience as shown in the attached design.
+
+For now, only implement two learning tracks:
+
+Data Structures & Algorithms (DSA)
+Low-Level Design (LLD)
+
+Each track should have:
+
+Roadmap/course structure
+Progress tracking
+Chapters/modules
+Expandable lesson cards
+Completion status
+Estimated learning time
+Difficulty level
+Beautiful dark theme consistent with the rest of the app
+Smooth animations and transitions
+
+Each lesson page should support:
+
+Concept explanation
+Why it matters in interviews
+Real-world examples
+Code examples
+Common interview questions
+Mark as Complete
+Previous / Next navigation
+Design Requirements
+Keep the existing theme, colors, typography, navigation, and component library.
+Reuse existing components whenever possible.
+Do not introduce a different design language.
+Ensure the Learn experience feels like a natural extension of the current app.
+The UI should be modern, clean, and mobile-friendly.
+Development Rules
+Analyze the project before making changes.
+Modify only the necessary files.
+Do not break existing functionality.
+Do not rewrite working code.
+Follow the current folder structure and coding conventions.
+If you need to create new components, keep them reusable and modular.
