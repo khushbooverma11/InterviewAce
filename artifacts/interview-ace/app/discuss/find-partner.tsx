@@ -111,6 +111,14 @@ export default function FindPartnerScreen() {
     }
   }, [matchStatus]);
 
+  // Auto-start the matched session immediately when the backend reports a session ID.
+  useEffect(() => {
+    if (!AUTH_ENABLED) return;
+    if (matchStatus?.status === 'matched' && matchStatus.sessionId) {
+      router.replace(`/discuss/chat/${matchStatus.sessionId}`);
+    }
+  }, [AUTH_ENABLED, matchStatus?.status, matchStatus?.sessionId, router]);
+
   // Cleanup demo timer on unmount
   useEffect(() => () => { if (demoTimerRef.current) clearTimeout(demoTimerRef.current); }, []);
 
@@ -131,6 +139,7 @@ export default function FindPartnerScreen() {
           setMatchId(result.id);
           if (result.status === 'matched' && result.sessionId) {
             setStage('matched');
+            router.replace(`/discuss/chat/${result.sessionId}`);
           } else {
             setStage('searching');
           }
