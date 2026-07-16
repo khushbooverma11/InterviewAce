@@ -10,6 +10,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   Platform,
+  Alert,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -19,6 +20,7 @@ import {
   useListDiscussPosts,
   useToggleDiscussPostUpvote,
   useListChatSessions,
+  useBlockSessionPartner,
 } from '@workspace/api-client-react';
 import type { DiscussPost, ChatSession } from '@workspace/api-client-react';
 import { PostCard } from '@/components/discuss/PostCard';
@@ -42,11 +44,13 @@ function HistoryCard({
   isFriend,
   onPress,
   onAddFriend,
+  onBlock,
 }: {
   session: ChatSession;
   isFriend: boolean;
   onPress: () => void;
   onAddFriend: () => void;
+  onBlock: () => void;
 }) {
   const colors = useColors();
   const sendFriend = useSendFriendRequest();
@@ -122,6 +126,16 @@ function HistoryCard({
             <Text style={[styles.friendBtnText, { color: '#10b981' }]}>Friends</Text>
           </View>
         )}
+        {!isActive && (
+          <TouchableOpacity
+            onPress={onBlock}
+            style={[styles.friendBtn, { backgroundColor: '#ef444415', borderColor: '#ef444430' }]}
+            activeOpacity={0.8}
+          >
+            <Feather name="slash" size={11} color="#ef4444" />
+            <Text style={[styles.friendBtnText, { color: '#ef4444' }]}>Block</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -147,6 +161,7 @@ export default function DiscussScreen() {
     useListChatSessions();
   const { data: friends = [] } = useFriends();
   const sendFriend = useSendFriendRequest();
+  const blockSession = useBlockSessionPartner();
 
   const toggleUpvote = useToggleDiscussPostUpvote();
 
@@ -170,6 +185,21 @@ export default function DiscussScreen() {
 
   const handleAddFriend = (session: ChatSession) => {
     sendFriend.mutate({ sessionId: session.id });
+  };
+
+  const handleBlockSession = (session: ChatSession) => {
+    Alert.alert(
+      'Block Partner',
+      `Block ${session.partnerHandle}? They won't be able to match with you again.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block',
+          style: 'destructive',
+          onPress: () => blockSession.mutate(session.id),
+        },
+      ],
+    );
   };
 
   return (
@@ -345,6 +375,7 @@ export default function DiscussScreen() {
                       isFriend={friendUserIds.has((s as unknown as { partnerId: number }).partnerId ?? -1)}
                       onPress={() => router.push(`/discuss/chat/${s.id}`)}
                       onAddFriend={() => handleAddFriend(s)}
+                      onBlock={() => handleBlockSession(s)}
                     />
                   ))}
                 </>
@@ -364,6 +395,7 @@ export default function DiscussScreen() {
                   isFriend={friendUserIds.has((s as unknown as { partnerId: number }).partnerId ?? -1)}
                   onPress={() => router.push(`/discuss/chat/${s.id}`)}
                   onAddFriend={() => handleAddFriend(s)}
+                  onBlock={() => handleBlockSession(s)}
                 />
               ))}
 

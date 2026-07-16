@@ -43,6 +43,7 @@ function ThemedStack() {
         backgroundColor={colors.background}
         translucent={false}
       />
+      <IncomingCallModal />
       <Stack
         screenOptions={{
           headerBackTitle: 'Back',
@@ -80,11 +81,13 @@ function AppProviders({ children }: { children: React.ReactNode }) {
     <SafeAreaProvider>
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
-          <GestureHandlerRootView style={{ flex: 1 }}>
-            <KeyboardProvider>
-              {children}
-            </KeyboardProvider>
-          </GestureHandlerRootView>
+          <PersonalWSProvider>
+            <GestureHandlerRootView style={{ flex: 1 }}>
+              <KeyboardProvider>
+                {children}
+              </KeyboardProvider>
+            </GestureHandlerRootView>
+          </PersonalWSProvider>
         </QueryClientProvider>
       </ErrorBoundary>
     </SafeAreaProvider>

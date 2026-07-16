@@ -37,6 +37,8 @@ export default function DMScreen() {
 
   const { data: friends = [] } = useFriends();
   const friend = friends.find((f) => f.userId === friendId);
+  const { typingUsers } = usePersonalWS();
+  const isTyping = !!typingUsers[friendId];
 
   const { data: messages = [], isLoading } = useDirectMessages(friendId);
   const sendDM = useSendDM();
@@ -143,7 +145,16 @@ export default function DMScreen() {
             <ActivityIndicator color={colors.primary} />
           </View>
         ) : (
-          <FlatList
+          <>
+            {isTyping && (
+              <View style={[styles.typingRow, { backgroundColor: colors.background }]}>
+                <AvatarBadge handle={friend?.handle ?? '?'} avatarColor={friend?.avatarColor ?? '#7c6cff'} size={22} />
+                <View style={[styles.typingBubble, { backgroundColor: colors.secondary }]}>
+                  <Text style={[styles.typingText, { color: colors.mutedForeground }]}>typing…</Text>
+                </View>
+              </View>
+            )}
+            <FlatList
             ref={listRef}
             data={messages}
             keyExtractor={(m) => String(m.id)}
@@ -157,7 +168,8 @@ export default function DMScreen() {
               </View>
             }
             renderItem={renderMessage}
-          />
+            />
+          </>
         )}
 
         {/* Input bar */}
@@ -223,6 +235,9 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     borderTopWidth: 1,
   },
+  typingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 6 },
+  typingBubble: { borderRadius: 14, paddingHorizontal: 12, paddingVertical: 7 },
+  typingText: { fontSize: 13, fontStyle: 'italic' },
   typeBtn: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
   input: {
     flex: 1,

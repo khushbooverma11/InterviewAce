@@ -30,6 +30,7 @@ import {
 import type { ChatMessageInputType } from '@workspace/api-client-react';
 import { AvatarBadge } from '@/components/discuss/AvatarBadge';
 import { MessageBubble } from '@/components/discuss/MessageBubble';
+import { FeedbackModal } from '@/components/discuss/FeedbackModal';
 import VoiceCallView from '@/components/discuss/VoiceCallView';
 
 const REPORT_REASONS = [
@@ -51,6 +52,7 @@ export default function ChatSessionScreen() {
 
   const [text, setText] = useState('');
   const [msgType, setMsgType] = useState<ChatMessageInputType>('text');
+  const [showFeedback, setShowFeedback] = useState(false);
 
   const { data: session, isLoading: sessionLoading } = useGetChatSession(sessionId);
   const { data: messages = [], isLoading: msgsLoading } = useListSessionMessages(sessionId, {
@@ -101,6 +103,7 @@ export default function ChatSessionScreen() {
               onSuccess: () => {
                 queryClient.invalidateQueries({ queryKey: getGetChatSessionQueryKey(sessionId) });
                 queryClient.invalidateQueries({ queryKey: getListSessionMessagesQueryKey(sessionId) });
+                setShowFeedback(true);
               },
             },
           ),
@@ -190,6 +193,16 @@ export default function ChatSessionScreen() {
     );
   }
 
+  // ── Feedback modal (shown after text session ends) ─────────────────────
+  const feedbackModal = session && session.chatType === 'text' && (
+    <FeedbackModal
+      sessionId={sessionId}
+      partnerHandle={session.partnerHandle}
+      visible={showFeedback}
+      onDismiss={() => setShowFeedback(false)}
+    />
+  );
+
   // ── Voice call ─────────────────────────────────────────────────────────
   if (session.chatType === 'voice') {
     return (
@@ -208,6 +221,8 @@ export default function ChatSessionScreen() {
 
   // ── Text chat ──────────────────────────────────────────────────────────
   return (
+    <>
+    {feedbackModal}
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -366,6 +381,7 @@ export default function ChatSessionScreen() {
         </View>
       )}
     </KeyboardAvoidingView>
+    </>
   );
 }
 

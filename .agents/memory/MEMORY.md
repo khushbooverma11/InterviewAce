@@ -5,3 +5,4 @@
 - [DB migrations must be run manually](db-migrations.md) — Run `pnpm --filter @workspace/db push` (or push-force) after any schema changes; tables do not auto-create on server start.
 - [Voice call signaling architecture](voice-call-signaling.md) — WebSocket primary (ws-server.ts ticket-based auth), HTTP polling fallback; ICE servers from /api/ice-servers with OpenRelay TURN default.
 - [WebRTC native support](webrtc-native.md) — react-native-webrtc installed; VoiceCallView loads it via require() with isSupported guard; requires custom Expo build (not Expo Go) for native voice.
+- [Find Partner feature complete](find-partner-feature.md) — All gaps closed: PersonalWSProvider rendered in layout, IncomingCallModal wired, FeedbackModal after session end, typing indicator in DMs, block from friends/history, friendshipId in incoming_call WS message.

@@ -126,6 +126,15 @@ export function useDeclineCall() {
   });
 }
 
+export function useBlockFriend() {
+  const qc = useQueryClient();
+  return useMutation<void, Error, number>({
+    mutationFn: (friendshipId) =>
+      customFetch(`/friends/${friendshipId}/block`, { method: 'POST' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['friends'] }),
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Direct Messages
 // ---------------------------------------------------------------------------

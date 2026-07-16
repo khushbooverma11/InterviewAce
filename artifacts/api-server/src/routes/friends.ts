@@ -330,12 +330,54 @@ router.post("/friends/:id/call", async (req, res): Promise<void> => {
   sendToUser(friendId, {
     type: "incoming_call",
     sessionId: session.id,
+    friendshipId: friendship.id,
     callerId: userId,
     callerHandle: me?.anonymousHandle ?? "Unknown",
     callerColor: me?.avatarColor ?? "#7c6cff",
   });
 
   res.status(201).json({ sessionId: session.id });
+});
+
+// ---------------------------------------------------------------------------
+// POST /friends/:id/block — block a friend (also removes friendship)
+// ---------------------------------------------------------------------------
+router.post("/friends/:id/block", async (req, res): Promise<void> => {
+  const userId = req.appUser!.id;
+  const friendshipId = Number(req.params.id);
+
+  const [friendship] = await db
+    .select()
+    .from(friendshipsTable)
+    .where(
+      and(
+        eq(friendshipsTable.id, friendshipId),
+        or(
+          eq(friendshipsTable.requesterId, userId),
+          eq(friendshipsTable.recipientId, userId),
+        ),
+      ),
+    );
+
+  if (!friendship) {
+    res.status(404).json({ error: "Friendship not found" });
+    return;
+  }
+
+  const friendId =
+    friendship.requesterId === userId ? friendship.recipientId : friendship.requesterId;
+
+  // Insert block (ignore if already blocked)
+  const { userBlocksTable } = await import("@workspace/db");
+  await db
+    .insert(userBlocksTable)
+    .values({ blockerId: userId, blockedId: friendId })
+    .onConflictDoNothing();
+
+  // Remove the friendship
+  await db.delete(friendshipsTable).where(eq(friendshipsTable.id, friendshipId));
+
+  res.sendStatus(204);
 });
 
 // ---------------------------------------------------------------------------

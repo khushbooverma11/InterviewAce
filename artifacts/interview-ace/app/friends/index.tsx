@@ -20,6 +20,7 @@ import {
   useRespondToFriendRequest,
   useUnfriend,
   useCallFriend,
+  useBlockFriend,
   type FriendEntry,
 } from '@/hooks/useApi';
 import { usePersonalWS } from '@/contexts/PersonalWSContext';
@@ -44,11 +45,12 @@ function PresenceDot({ status }: { status: string }) {
   );
 }
 
-function FriendCard({ friend, onMessage, onCall, onUnfriend }: {
+function FriendCard({ friend, onMessage, onCall, onUnfriend, onBlock }: {
   friend: FriendEntry;
   onMessage: () => void;
   onCall: () => void;
   onUnfriend: () => void;
+  onBlock: () => void;
 }) {
   const colors = useColors();
   const { presenceMap } = usePersonalWS();
@@ -88,6 +90,12 @@ function FriendCard({ friend, onMessage, onCall, onUnfriend }: {
           style={[styles.actionBtn, { backgroundColor: '#ef444415' }]}
         >
           <Feather name="user-minus" size={17} color="#ef4444" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={onBlock}
+          style={[styles.actionBtn, { backgroundColor: '#ef444415' }]}
+        >
+          <Feather name="slash" size={17} color="#ef4444" />
         </TouchableOpacity>
       </View>
     </View>
@@ -144,6 +152,7 @@ export default function FriendsScreen() {
   const { data: requests = [], isLoading: reqLoading, refetch: refetchReqs } = useFriendRequests();
   const respond = useRespondToFriendRequest();
   const unfriend = useUnfriend();
+  const blockFriend = useBlockFriend();
   const callFriend = useCallFriend();
 
   const [refreshing, setRefreshing] = useState(false);
@@ -182,6 +191,21 @@ export default function FriendsScreen() {
           text: 'Remove',
           style: 'destructive',
           onPress: () => unfriend.mutate(friend.friendshipId),
+        },
+      ],
+    );
+  };
+
+  const handleBlock = (friend: FriendEntry) => {
+    Alert.alert(
+      'Block User',
+      `Block ${friend.handle}? They won't be able to message, call, or match with you. This will also remove them from your friends.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block',
+          style: 'destructive',
+          onPress: () => blockFriend.mutate(friend.friendshipId),
         },
       ],
     );
@@ -246,6 +270,7 @@ export default function FriendsScreen() {
               onMessage={() => router.push(`/messages/${item.userId}` as never)}
               onCall={() => handleCall(item)}
               onUnfriend={() => handleUnfriend(item)}
+              onBlock={() => handleBlock(item)}
             />
           )}
         />

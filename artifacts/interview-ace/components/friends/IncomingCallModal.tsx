@@ -42,8 +42,7 @@ export function IncomingCallModal() {
   };
 
   const handleDecline = () => {
-    // We don't have the friendshipId here, use sessionId approach
-    declineCall.mutate({ friendshipId: 0, sessionId: incomingCall.sessionId });
+    declineCall.mutate({ friendshipId: incomingCall.friendshipId, sessionId: incomingCall.sessionId });
     clearIncomingCall();
   };
 
