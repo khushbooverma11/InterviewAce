@@ -421,7 +421,11 @@ function VoiceCallCore({ sessionId, isCaller, partnerHandle, partnerAvatarColor,
           setStatus('connected');
           if (timeoutRef.current) clearTimeout(timeoutRef.current);
         }
-        if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
+        if (pc.connectionState === 'disconnected') {
+          // Transient — ICE may recover; just surface a status update without tearing down.
+          setStatus('connecting');
+        }
+        if (pc.connectionState === 'failed') {
           setStatus('failed');
           setError('The call was disconnected unexpectedly.');
           cleanup(false);
