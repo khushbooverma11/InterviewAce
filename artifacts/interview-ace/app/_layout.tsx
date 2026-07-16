@@ -1,9 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { StatusBar, Platform, useColorScheme } from 'react-native';
+import { ActivityIndicator, StatusBar, Platform, useColorScheme, View } from 'react-native';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { PersonalWSProvider } from '@/contexts/PersonalWSContext';
 import { IncomingCallModal } from '@/components/friends/IncomingCallModal';
@@ -22,7 +22,8 @@ import { useColors } from '@/hooks/useColors';
 SplashScreen.preventAutoHideAsync();
 
 const domain = process.env.EXPO_PUBLIC_DOMAIN;
-if (domain) setBaseUrl(`https://${domain}`);
+// The API server's preview path is /api, so all API calls must be prefixed with /api.
+if (domain) setBaseUrl(`https://${domain}/api`);
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? '';
 const proxyUrl = process.env.EXPO_PUBLIC_CLERK_PROXY_URL || undefined;
@@ -102,25 +103,31 @@ export default function RootLayout() {
     Inter_700Bold,
   });
 
-  useEffect(() => {
-    if (fontsLoaded || fontError) SplashScreen.hideAsync();
-  }, [fontsLoaded, fontError]);
+  // On web, render immediately — Google Fonts CDN may be unreachable in some
+  // environments and waiting for fonts keeps the screen blank. Native platforms
+  // use the SplashScreen gate as usual so the transition looks polished.
+  const ready = Platform.OS === 'web' || fontsLoaded || !!fontError;
 
-  if (!fontsLoaded && !fontError) return null;
+  useEffect(() => {
+    if (ready) SplashScreen.hideAsync();
+  }, [ready]);
+
+  if (!ready) return null;
 
   if (AUTH_ENABLED) {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { ClerkProvider, ClerkLoaded } = require('@clerk/expo');
+    const { ClerkProvider } = require('@clerk/expo');
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { tokenCache } = require('@clerk/expo/token-cache');
 
+    // ClerkLoaded is intentionally omitted: it blocks render until Clerk's CDN
+    // JS finishes loading, which can take several seconds and leaves the screen
+    // blank. Auth state is guarded per-screen via useAuth() / isLoaded checks.
     return (
       <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache} proxyUrl={proxyUrl}>
-        <ClerkLoaded>
-          <AppProviders>
-            <ThemedStack />
-          </AppProviders>
-        </ClerkLoaded>
+        <AppProviders>
+          <ThemedStack />
+        </AppProviders>
       </ClerkProvider>
     );
   }

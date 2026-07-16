@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Platform, StyleSheet, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, useColorScheme, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { Feather } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
@@ -128,7 +128,7 @@ export default function TabLayout() {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { useAuth } = require('@clerk/expo');
     // eslint-disable-next-line react-hooks/rules-of-hooks
-    const { isSignedIn, getToken } = useAuth();
+    const { isLoaded, isSignedIn, getToken } = useAuth();
 
     // Register a token getter immediately so child screens can start making
     // authenticated requests as soon as they mount, including on web where the
@@ -150,7 +150,10 @@ export default function TabLayout() {
       return () => setAuthTokenGetter(null);
     }, [getToken, isSignedIn]);
 
-    if (!isSignedIn) return <Redirect href="/(auth)/sign-in" />;
+    // Redirect to sign-in immediately — show the form while Clerk finishes
+    // initializing in the background (isLoaded becomes true before the user
+    // can type and submit the form, so auth still works correctly).
+    if (!isLoaded || !isSignedIn) return <Redirect href="/(auth)/sign-in" />;
   }
 
   if (isLiquidGlassAvailable()) return <NativeTabLayout />;
