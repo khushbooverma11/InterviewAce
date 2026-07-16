@@ -1,6 +1,5 @@
 import { Router, type IRouter } from "express";
 import { eq, and, or, asc } from "drizzle-orm";
-import { z } from "zod/v4";
 import {
   db,
   chatSessionsTable,
