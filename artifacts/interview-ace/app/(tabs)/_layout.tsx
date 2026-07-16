@@ -150,10 +150,11 @@ export default function TabLayout() {
       return () => setAuthTokenGetter(null);
     }, [getToken, isSignedIn]);
 
-    // Redirect to sign-in immediately — show the form while Clerk finishes
-    // initializing in the background (isLoaded becomes true before the user
-    // can type and submit the form, so auth still works correctly).
-    if (!isLoaded || !isSignedIn) return <Redirect href="/(auth)/sign-in" />;
+    // While Clerk is still initialising, render nothing — no redirect, no flash.
+    // Redirecting before isLoaded causes a sign-in flash and a double-redirect
+    // crash when Clerk then resolves isSignedIn=true.
+    if (!isLoaded) return null;
+    if (!isSignedIn) return <Redirect href="/(auth)/sign-in" />;
   }
 
   if (isLiquidGlassAvailable()) return <NativeTabLayout />;
