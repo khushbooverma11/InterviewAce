@@ -33,6 +33,8 @@ export interface UserStats {
   lastActiveDate: string | null;
   totalTopicsCompleted: number;
   totalProblemsSolved: number;
+  totalSessionsCompleted: number;
+  totalPostsCreated: number;
 }
 
 export type TopicSummaryDifficulty = typeof TopicSummaryDifficulty[keyof typeof TopicSummaryDifficulty];
@@ -333,6 +335,10 @@ export interface ChatSession {
   startedAt: string;
   /** @nullable */
   endedAt: string | null;
+  /** True when this user is the WebRTC offer initiator (userA in the session). */
+  isCaller: boolean;
+  /** DB id of the partner user — used for WebRTC signaling routing. */
+  partnerId: number;
 }
 
 export type ChatMessageType = typeof ChatMessageType[keyof typeof ChatMessageType];

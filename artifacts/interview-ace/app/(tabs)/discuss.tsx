@@ -196,7 +196,7 @@ export default function DiscussScreen() {
         {
           text: 'Block',
           style: 'destructive',
-          onPress: () => blockSession.mutate(session.id),
+          onPress: () => blockSession.mutate({ id: session.id }),
         },
       ],
     );

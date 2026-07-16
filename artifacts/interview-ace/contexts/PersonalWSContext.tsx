@@ -139,7 +139,7 @@ export function PersonalWSProvider({ children }: { children: React.ReactNode }) 
         break;
       }
       case 'dm_typing': {
-        const { fromUserId, isTyping } = msg as { fromUserId: number; isTyping: boolean };
+        const { fromUserId, isTyping } = msg as unknown as { fromUserId: number; isTyping: boolean };
         if (!fromUserId) break;
         setTypingUsers((prev) => ({ ...prev, [fromUserId]: isTyping }));
         // Auto-clear after 4s in case stop event is missed
@@ -157,7 +157,7 @@ export function PersonalWSProvider({ children }: { children: React.ReactNode }) 
         break;
       }
       case 'presence_update': {
-        const { userId, status } = msg as { userId: number; status: PresenceStatus };
+        const { userId, status } = msg as unknown as { userId: number; status: PresenceStatus };
         setPresenceMap((prev) => ({ ...prev, [userId]: status }));
         break;
       }
