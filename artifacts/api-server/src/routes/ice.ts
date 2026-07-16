@@ -27,11 +27,29 @@ router.get("/ice-servers", async (_req, res): Promise<void> => {
     }
   }
 
-  // Fallback: public STUN only
+  // Default: public OpenRelay TURN servers (Metered.ca test infrastructure).
+  // Works for development/testing without any credentials.
+  // For production, set METERED_API_KEY + METERED_APP_NAME env vars.
   res.json({
     iceServers: [
       { urls: "stun:stun.l.google.com:19302" },
       { urls: "stun:stun1.l.google.com:19302" },
+      { urls: "stun:openrelay.metered.ca:80" },
+      {
+        urls: "turn:openrelay.metered.ca:80",
+        username: "openrelayproject",
+        credential: "openrelayproject",
+      },
+      {
+        urls: "turn:openrelay.metered.ca:443",
+        username: "openrelayproject",
+        credential: "openrelayproject",
+      },
+      {
+        urls: "turns:openrelay.metered.ca:443",
+        username: "openrelayproject",
+        credential: "openrelayproject",
+      },
     ],
   });
 });

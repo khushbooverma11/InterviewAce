@@ -3,3 +3,5 @@
 - [Horizontal ScrollView height](horizontal-scrollview-height.md) — On web, horizontal ScrollView inside flex col must be wrapped in a fixed-height View to avoid chip stretching.
 - [Clerk auth token getter platform split](clerk-auth-token-platform.md) — On web, never call setAuthTokenGetter; browser sends Clerk cookie automatically. Native only needs the bearer token getter.
 - [DB migrations must be run manually](db-migrations.md) — Run `pnpm --filter @workspace/db push` (or push-force) after any schema changes; tables do not auto-create on server start.
+- [Voice call signaling architecture](voice-call-signaling.md) — WebSocket primary (ws-server.ts ticket-based auth), HTTP polling fallback; ICE servers from /api/ice-servers with OpenRelay TURN default.
+- [WebRTC native support](webrtc-native.md) — react-native-webrtc installed; VoiceCallView loads it via require() with isSupported guard; requires custom Expo build (not Expo Go) for native voice.
