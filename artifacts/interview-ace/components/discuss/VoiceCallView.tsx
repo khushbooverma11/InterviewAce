@@ -153,7 +153,14 @@ async function postSignalHttp(sessionId: number, type: string, payload: string):
 
 async function fetchSignalsHttp(sessionId: number): Promise<VoiceSignal[] | null> {
   try {
-    return await customFetch<VoiceSignal[]>(`/api/discuss/sessions/${sessionId}/signals`);
+    // cache: 'no-store' prevents the browser from sending If-None-Match conditional
+    // requests. Without it, empty-array responses get an ETag cached by the browser,
+    // every subsequent poll returns 304, customFetch returns null, and the call tears
+    // down after MAX_SIGNAL_ERRORS consecutive "errors".
+    return await customFetch<VoiceSignal[]>(
+      `/api/discuss/sessions/${sessionId}/signals`,
+      { cache: 'no-store' },
+    );
   } catch { return null; }
 }
 

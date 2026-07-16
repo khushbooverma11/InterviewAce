@@ -1,7 +1,7 @@
 import { WebSocketServer, WebSocket } from "ws";
 import type { Server } from "node:http";
 import { eq } from "drizzle-orm";
-import { db, webrtcSignalsTable } from "@workspace/db";
+import { db, webrtcSignalsTable, chatSessionsTable } from "@workspace/db";
 import { logger } from "./lib/logger";
 import { consumeWsTicket, consumePersonalWsTicket } from "./ws-tickets";
 
@@ -108,25 +108,39 @@ async function handleSessionConnection(ws: WebSocket, ticket: string) {
       if (msg.type !== "signal") return;
 
       const { signalType, payload } = msg;
-      const currentRoom = sessionRooms.get(sessionId);
-      if (!currentRoom) return;
 
-      const recipientId = [...currentRoom.keys()].find((id) => id !== userId);
-      const recipientWs = recipientId != null ? currentRoom.get(recipientId) : undefined;
-      const wsDelivered = recipientWs?.readyState === WebSocket.OPEN;
+      // Look up the session in the DB to determine the correct recipientId.
+      // We cannot rely on sessionRooms (in-memory map) because on autoscale
+      // each Cloud Run instance has its own map — the other peer may be on a
+      // different instance, in which case sessionRooms only contains the sender
+      // and `recipientId` would fall back to the sender's own userId (bug).
+      const [session] = await db
+        .select({ userAId: chatSessionsTable.userAId, userBId: chatSessionsTable.userBId })
+        .from(chatSessionsTable)
+        .where(eq(chatSessionsTable.id, sessionId))
+        .limit(1);
 
+      if (!session) return;
+
+      const recipientId = session.userAId === userId ? session.userBId : session.userAId;
+
+      // Persist the signal first so HTTP polling always has it as a fallback.
       const [inserted] = await db
         .insert(webrtcSignalsTable)
         .values({
           sessionId,
           senderId: userId,
-          recipientId: recipientId ?? userId,
+          recipientId,
           type: signalType,
           payload,
         })
         .returning({ id: webrtcSignalsTable.id });
 
-      if (wsDelivered && recipientWs) {
+      // Attempt real-time delivery if the recipient also happens to be connected
+      // to this same instance (same-instance optimisation; not reliable on autoscale).
+      const currentRoom = sessionRooms.get(sessionId);
+      const recipientWs = currentRoom?.get(recipientId);
+      if (recipientWs?.readyState === WebSocket.OPEN) {
         recipientWs.send(JSON.stringify({ type: "signal", signalType, payload }));
         if (inserted) {
           db.update(webrtcSignalsTable)
