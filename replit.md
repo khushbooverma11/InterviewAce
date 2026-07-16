@@ -16,11 +16,10 @@ A technical interview prep platform: a mobile-first app where candidates practic
 ### Required secrets
 | Secret | Description |
 |---|---|
-| `DATABASE_URL` | PostgreSQL connection string |
-| `CLERK_SECRET_KEY` | Clerk backend secret key |
-| `CLERK_PUBLISHABLE_KEY` | Clerk frontend publishable key |
-| `VITE_CLERK_PUBLISHABLE_KEY` | Same key, exposed to Vite/web builds |
-| `SESSION_SECRET` | Express session signing secret |
+| `DATABASE_URL` | Provisioned automatically by Replit (PostgreSQL) |
+| `CLERK_SECRET_KEY` | Clerk backend secret key (from dashboard.clerk.com) |
+| `CLERK_PUBLISHABLE_KEY` | Clerk frontend publishable key — the dev script maps this to `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` automatically |
+| `SESSION_SECRET` | Express session signing secret (already set) |
 
 ### Optional secrets
 | Secret | Description |
