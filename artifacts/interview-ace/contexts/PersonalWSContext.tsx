@@ -70,7 +70,7 @@ export function PersonalWSProvider({ children }: { children: React.ReactNode }) 
     if (!mounted.current) return;
 
     try {
-      const data = await customFetch<{ ticket: string }>('/me/ws-ticket');
+      const data = await customFetch<{ ticket: string }>('/api/me/ws-ticket');
       if (!mounted.current || !data?.ticket) return;
 
       const base = (() => {
@@ -190,7 +190,7 @@ export function PersonalWSProvider({ children }: { children: React.ReactNode }) 
   }, [connect]);
 
   useEffect(() => {
-    customFetch<{ count: number }>('/notifications/unread-count')
+    customFetch<{ count: number }>('/api/notifications/unread-count')
       .then((d) => { if (d?.count !== undefined) setUnreadCount(d.count); })
       .catch(() => {});
   }, []);

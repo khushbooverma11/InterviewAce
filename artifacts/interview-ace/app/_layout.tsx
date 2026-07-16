@@ -22,8 +22,10 @@ import { useColors } from '@/hooks/useColors';
 SplashScreen.preventAutoHideAsync();
 
 const domain = process.env.EXPO_PUBLIC_DOMAIN;
-// The API server's preview path is /api, so all API calls must be prefixed with /api.
-if (domain) setBaseUrl(`https://${domain}/api`);
+// The API server's preview path is /api. The generated API client and manual
+// customFetch calls already include the /api prefix in their paths, so the
+// base URL must be the bare domain without any trailing path segment.
+if (domain) setBaseUrl(`https://${domain}`);
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? '';
 const proxyUrl = process.env.EXPO_PUBLIC_CLERK_PROXY_URL || undefined;
