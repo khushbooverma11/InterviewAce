@@ -65,21 +65,21 @@ export interface SessionFeedbackPayload {
 export function useFriends() {
   return useQuery<FriendEntry[]>({
     queryKey: ['friends'],
-    queryFn: () => customFetch('/friends'),
+    queryFn: () => customFetch('/api/friends'),
   });
 }
 
 export function useFriendRequests() {
   return useQuery<FriendEntry[]>({
     queryKey: ['friend-requests'],
-    queryFn: () => customFetch('/friends/requests'),
+    queryFn: () => customFetch('/api/friends/requests'),
   });
 }
 
 export function useSendFriendRequest() {
   const qc = useQueryClient();
   return useMutation<FriendEntry, Error, { recipientId?: number; sessionId?: number }>({
-    mutationFn: (body) => customFetch('/friends', { method: 'POST', body: JSON.stringify(body) }),
+    mutationFn: (body) => customFetch('/api/friends', { method: 'POST', body: JSON.stringify(body) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['friends'] });
       qc.invalidateQueries({ queryKey: ['friend-requests'] });
@@ -91,7 +91,7 @@ export function useRespondToFriendRequest() {
   const qc = useQueryClient();
   return useMutation<FriendEntry, Error, { friendshipId: number; action: 'accept' | 'reject' }>({
     mutationFn: ({ friendshipId, action }) =>
-      customFetch(`/friends/${friendshipId}`, { method: 'PATCH', body: JSON.stringify({ action }) }),
+      customFetch(`/api/friends/${friendshipId}`, { method: 'PATCH', body: JSON.stringify({ action }) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['friends'] });
       qc.invalidateQueries({ queryKey: ['friend-requests'] });
@@ -104,7 +104,7 @@ export function useUnfriend() {
   const qc = useQueryClient();
   return useMutation<void, Error, number>({
     mutationFn: (friendshipId) =>
-      customFetch(`/friends/${friendshipId}`, { method: 'DELETE' }),
+      customFetch(`/api/friends/${friendshipId}`, { method: 'DELETE' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['friends'] }),
   });
 }
@@ -112,14 +112,14 @@ export function useUnfriend() {
 export function useCallFriend() {
   return useMutation<{ sessionId: number }, Error, number>({
     mutationFn: (friendshipId) =>
-      customFetch(`/friends/${friendshipId}/call`, { method: 'POST' }),
+      customFetch(`/api/friends/${friendshipId}/call`, { method: 'POST' }),
   });
 }
 
 export function useDeclineCall() {
   return useMutation<void, Error, { friendshipId: number; sessionId: number }>({
     mutationFn: ({ friendshipId, sessionId }) =>
-      customFetch(`/friends/${friendshipId}/call/decline`, {
+      customFetch(`/api/friends/${friendshipId}/call/decline`, {
         method: 'POST',
         body: JSON.stringify({ sessionId }),
       }),
@@ -130,7 +130,7 @@ export function useBlockFriend() {
   const qc = useQueryClient();
   return useMutation<void, Error, number>({
     mutationFn: (friendshipId) =>
-      customFetch(`/friends/${friendshipId}/block`, { method: 'POST' }),
+      customFetch(`/api/friends/${friendshipId}/block`, { method: 'POST' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['friends'] }),
   });
 }
@@ -142,7 +142,7 @@ export function useBlockFriend() {
 export function useDirectMessages(friendId: number) {
   return useQuery<DirectMessage[]>({
     queryKey: ['messages', friendId],
-    queryFn: () => customFetch(`/messages/${friendId}`),
+    queryFn: () => customFetch(`/api/messages/${friendId}`),
     enabled: !!friendId,
     refetchInterval: 5000, // Fallback poll in case WS misses something
   });
@@ -151,7 +151,7 @@ export function useDirectMessages(friendId: number) {
 export function useDMConversations() {
   return useQuery<DMConversation[]>({
     queryKey: ['messages'],
-    queryFn: () => customFetch('/messages'),
+    queryFn: () => customFetch('/api/messages'),
   });
 }
 
@@ -159,7 +159,7 @@ export function useSendDM() {
   const qc = useQueryClient();
   return useMutation<DirectMessage, Error, { friendId: number; content: string; type?: 'text' | 'code' }>({
     mutationFn: ({ friendId, content, type = 'text' }) =>
-      customFetch(`/messages/${friendId}`, { method: 'POST', body: JSON.stringify({ content, type }) }),
+      customFetch(`/api/messages/${friendId}`, { method: 'POST', body: JSON.stringify({ content, type }) }),
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['messages', vars.friendId] });
       qc.invalidateQueries({ queryKey: ['messages'] });
@@ -174,7 +174,7 @@ export function useSendDM() {
 export function useNotifications() {
   return useQuery<AppNotification[]>({
     queryKey: ['notifications'],
-    queryFn: () => customFetch('/notifications'),
+    queryFn: () => customFetch('/api/notifications'),
     refetchInterval: 30_000,
   });
 }
@@ -182,7 +182,7 @@ export function useNotifications() {
 export function useMarkNotificationRead() {
   const qc = useQueryClient();
   return useMutation<void, Error, number>({
-    mutationFn: (id) => customFetch(`/notifications/${id}/read`, { method: 'PATCH' }),
+    mutationFn: (id) => customFetch(`/api/notifications/${id}/read`, { method: 'PATCH' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
   });
 }
@@ -190,7 +190,7 @@ export function useMarkNotificationRead() {
 export function useMarkAllNotificationsRead() {
   const qc = useQueryClient();
   return useMutation<void, Error, void>({
-    mutationFn: () => customFetch('/notifications/read-all', { method: 'POST' }),
+    mutationFn: () => customFetch('/api/notifications/read-all', { method: 'POST' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
   });
 }
@@ -202,7 +202,7 @@ export function useMarkAllNotificationsRead() {
 export function useSubmitSessionFeedback() {
   return useMutation<{ ok: boolean }, Error, { sessionId: number; feedback: SessionFeedbackPayload }>({
     mutationFn: ({ sessionId, feedback }) =>
-      customFetch(`/discuss/sessions/${sessionId}/feedback`, {
+      customFetch(`/api/discuss/sessions/${sessionId}/feedback`, {
         method: 'POST',
         body: JSON.stringify(feedback),
       }),
