@@ -363,8 +363,8 @@ export default function FindPartnerScreen() {
             style={[styles.findBtn, { backgroundColor: '#10b981', marginTop: 8 }]}
             activeOpacity={0.85}
           >
-            <Feather name="message-circle" size={18} color="#fff" />
-            <Text style={styles.findBtnText}>Start Chat</Text>
+            <Feather name={chatType === 'voice' ? 'phone' : 'message-circle'} size={18} color="#fff" />
+            <Text style={styles.findBtnText}>{chatType === 'voice' ? 'Start Call' : 'Start Chat'}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={handleCancel}
