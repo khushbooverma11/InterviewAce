@@ -1,6 +1,6 @@
 import { pgTable, serial, integer, text, pgEnum } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
-import { z } from "zod/v4";
+import { z } from "zod";
 import { dsaPatternsTable } from "./dsaPatterns";
 
 export const questionDifficultyEnum = pgEnum("question_difficulty", ["easy", "medium", "hard"]);

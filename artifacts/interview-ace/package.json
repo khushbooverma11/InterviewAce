@@ -59,6 +59,7 @@
     "@clerk/expo": "^3.7.4",
     "expo-auth-session": "~7.0.11",
     "expo-crypto": "~15.0.9",
-    "expo-secure-store": "~15.0.8"
+    "expo-secure-store": "~15.0.8",
+    "react-native-webrtc": "^124.0.7"
   }
 }

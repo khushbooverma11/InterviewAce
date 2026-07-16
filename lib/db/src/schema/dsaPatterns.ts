@@ -1,6 +1,6 @@
 import { pgTable, serial, text, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
-import { z } from "zod/v4";
+import { z } from "zod";
 
 export const dsaPatternsTable = pgTable("dsa_patterns", {
   id: serial("id").primaryKey(),

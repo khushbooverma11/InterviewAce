@@ -1,12 +1,16 @@
 /**
- * VoiceCallView — Peer Up-style WebRTC audio call.
+ * VoiceCallView — Peer-to-peer WebRTC audio call.
  *
- * Web-only. On native shows a "use web browser" fallback.
- *
- * Signaling: HTTP polling every 1.5 s against /api/discuss/sessions/:id/signals
+ * Signaling: WebSocket (primary, real-time) with HTTP polling fallback every 3 s.
  *  - isCaller (userA) creates the offer first
  *  - Callee (userB) receives offer → answers
  *  - Both exchange ICE candidates until peer connection is established
+ *
+ * ICE servers: fetched from /api/ice-servers (includes TURN when configured).
+ *
+ * Platforms:
+ *  - Web: uses browser globals (RTCPeerConnection, navigator.mediaDevices)
+ *  - Native: uses react-native-webrtc (requires a custom Expo build, not Expo Go)
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
@@ -16,16 +20,65 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { customFetch } from '@workspace/api-client-react';
 
-// ── Config ───────────────────────────────────────────────────────────────────
-const STUN_SERVERS: RTCIceServer[] = [
-  { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'stun:stun1.l.google.com:19302' },
-];
-const POLL_INTERVAL_MS = 1500;
-const CONNECTION_TIMEOUT_MS = 35_000;
-const MAX_SIGNAL_ERRORS = 5; // consecutive API failures before showing error
+// ── WebRTC platform loader ────────────────────────────────────────────────────
+interface WebRTCModule {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  PeerConnection: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  SessionDescription: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  IceCandidate: any;
+  getUserMedia: (constraints: MediaStreamConstraints) => Promise<MediaStream>;
+  isSupported: boolean;
+}
 
-// ── Types ────────────────────────────────────────────────────────────────────
+function loadWebRTC(): WebRTCModule {
+  if (Platform.OS === 'web') {
+    const supported = typeof RTCPeerConnection !== 'undefined';
+    return {
+      PeerConnection: supported ? RTCPeerConnection : undefined,
+      SessionDescription: supported ? RTCSessionDescription : undefined,
+      IceCandidate: supported ? RTCIceCandidate : undefined,
+      getUserMedia: (c) => navigator.mediaDevices.getUserMedia(c),
+      isSupported: supported,
+    };
+  }
+  // Native — requires react-native-webrtc (not available in Expo Go)
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const rn = require('react-native-webrtc') as {
+      RTCPeerConnection: unknown;
+      RTCSessionDescription: unknown;
+      RTCIceCandidate: unknown;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mediaDevices: any;
+    };
+    return {
+      PeerConnection: rn.RTCPeerConnection,
+      SessionDescription: rn.RTCSessionDescription,
+      IceCandidate: rn.RTCIceCandidate,
+      getUserMedia: (c: MediaStreamConstraints) => rn.mediaDevices.getUserMedia(c),
+      isSupported: true,
+    };
+  } catch {
+    return {
+      PeerConnection: undefined,
+      SessionDescription: undefined,
+      IceCandidate: undefined,
+      getUserMedia: undefined as unknown as WebRTCModule['getUserMedia'],
+      isSupported: false,
+    };
+  }
+}
+
+const WebRTCNative = loadWebRTC();
+
+// ── Config ────────────────────────────────────────────────────────────────────
+const FALLBACK_POLL_MS = 3000; // HTTP fallback (WS handles real-time)
+const CONNECTION_TIMEOUT_MS = 35_000;
+const MAX_SIGNAL_ERRORS = 5;
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 interface VoiceSignal { id: number; type: string; payload: string; }
 type CallStatus = 'requesting' | 'ringing' | 'connecting' | 'connected' | 'failed' | 'ended';
 
@@ -37,7 +90,7 @@ interface Props {
   onEnd: () => void;
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function initials(handle: string): string {
   const words = handle.trim().split(/\s+/);
   if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
@@ -49,8 +102,46 @@ function formatTime(secs: number): string {
   return `${m}:${s}`;
 }
 
-// ── Signal API ────────────────────────────────────────────────────────────────
-async function postSignal(sessionId: number, type: string, payload: string): Promise<boolean> {
+// ── WS URL builder ────────────────────────────────────────────────────────────
+function getWsBase(): string {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    return window.location.origin
+      .replace(/^https/, 'wss')
+      .replace(/^http(?!s)/, 'ws');
+  }
+  const domain = process.env.EXPO_PUBLIC_DOMAIN ?? '';
+  return domain ? `wss://${domain}` : 'ws://localhost:8080';
+}
+
+// ── ICE server fetcher ────────────────────────────────────────────────────────
+async function fetchIceServers(): Promise<RTCIceServer[]> {
+  try {
+    const result = await customFetch<{ iceServers: RTCIceServer[] }>('/api/ice-servers');
+    if (Array.isArray(result.iceServers) && result.iceServers.length > 0) return result.iceServers;
+  } catch { /* fall through */ }
+  return [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+  ];
+}
+
+// ── WS signaling socket ───────────────────────────────────────────────────────
+async function openSignalingSocket(sessionId: number): Promise<WebSocket | null> {
+  try {
+    const { ticket } = await customFetch<{ ticket: string }>(
+      `/api/discuss/sessions/${sessionId}/ws-ticket`,
+    );
+    const ws = new WebSocket(`${getWsBase()}/api/ws?sessionId=${sessionId}&ticket=${ticket}`);
+    return new Promise((resolve) => {
+      const t = setTimeout(() => { ws.close(); resolve(null); }, 5000);
+      ws.onopen = () => { clearTimeout(t); resolve(ws); };
+      ws.onerror = () => { clearTimeout(t); resolve(null); };
+    });
+  } catch { return null; }
+}
+
+// ── HTTP Signal API (fallback) ────────────────────────────────────────────────
+async function postSignalHttp(sessionId: number, type: string, payload: string): Promise<boolean> {
   try {
     await customFetch(`/api/discuss/sessions/${sessionId}/signal`, {
       method: 'POST',
@@ -60,14 +151,13 @@ async function postSignal(sessionId: number, type: string, payload: string): Pro
   } catch { return false; }
 }
 
-/** Returns null on error (vs. empty array = no signals yet) */
-async function fetchSignals(sessionId: number): Promise<VoiceSignal[] | null> {
+async function fetchSignalsHttp(sessionId: number): Promise<VoiceSignal[] | null> {
   try {
     return await customFetch<VoiceSignal[]>(`/api/discuss/sessions/${sessionId}/signals`);
   } catch { return null; }
 }
 
-// ── Pulsing rings (connecting animation) ─────────────────────────────────────
+// ── Pulsing rings ─────────────────────────────────────────────────────────────
 function PulsingRings({ color, active }: { color: string; active: boolean }) {
   const a1 = useRef(new Animated.Value(0)).current;
   const a2 = useRef(new Animated.Value(0)).current;
@@ -106,7 +196,6 @@ function PulsingRings({ color, active }: { color: string; active: boolean }) {
   );
 }
 
-// ── Animated ellipsis ─────────────────────────────────────────────────────────
 function Ellipsis() {
   const [d, setD] = useState('');
   useEffect(() => {
@@ -116,10 +205,7 @@ function Ellipsis() {
   return <Text style={styles.ellipsis}>{d}</Text>;
 }
 
-// ── Avatar block ──────────────────────────────────────────────────────────────
-function CallAvatar({
-  label, color, status,
-}: { label: string; color: string; status: CallStatus }) {
+function CallAvatar({ label, color, status }: { label: string; color: string; status: CallStatus }) {
   const isPulsing = status === 'requesting' || status === 'ringing' || status === 'connecting';
   const borderColor = status === 'connected' ? '#10b981' : '#1e293b';
   return (
@@ -134,7 +220,7 @@ function CallAvatar({
   );
 }
 
-// ── Native fallback ───────────────────────────────────────────────────────────
+// ── Native fallback (no react-native-webrtc / Expo Go) ───────────────────────
 function NativeFallback({ partnerHandle, partnerAvatarColor, onEnd }: Props) {
   return (
     <View style={styles.container}>
@@ -146,7 +232,9 @@ function NativeFallback({ partnerHandle, partnerAvatarColor, onEnd }: Props) {
         </View>
       </View>
       <Text style={styles.handleText}>{partnerHandle}</Text>
-      <Text style={[styles.statusLabel, { marginTop: 8 }]}>Voice calls require a web browser.</Text>
+      <Text style={[styles.statusLabel, { marginTop: 8, textAlign: 'center', paddingHorizontal: 32 }]}>
+        Voice calls need a custom app build.{'\n'}Open in a web browser to call now.
+      </Text>
       <TouchableOpacity style={[styles.endPill, { marginTop: 48 }]} onPress={onEnd} activeOpacity={0.8}>
         <Feather name="arrow-left" size={18} color="#fff" />
         <Text style={styles.endPillText}>Go Back</Text>
@@ -157,12 +245,12 @@ function NativeFallback({ partnerHandle, partnerAvatarColor, onEnd }: Props) {
 
 // ── Main export ───────────────────────────────────────────────────────────────
 export default function VoiceCallView(props: Props) {
-  if (Platform.OS !== 'web') return <NativeFallback {...props} />;
-  return <WebVoiceCall {...props} />;
+  if (!WebRTCNative.isSupported) return <NativeFallback {...props} />;
+  return <VoiceCallCore {...props} />;
 }
 
-// ── WebRTC component ──────────────────────────────────────────────────────────
-function WebVoiceCall({ sessionId, isCaller, partnerHandle, partnerAvatarColor, onEnd }: Props) {
+// ── Core voice call component ─────────────────────────────────────────────────
+function VoiceCallCore({ sessionId, isCaller, partnerHandle, partnerAvatarColor, onEnd }: Props) {
   const [status, setStatus] = useState<CallStatus>('requesting');
   const [muted, setMuted] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -174,9 +262,11 @@ function WebVoiceCall({ sessionId, isCaller, partnerHandle, partnerAvatarColor, 
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const pcRef = useRef<RTCPeerConnection | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pcRef = useRef<any>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
-  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement | null>(null); // web only
+  const wsRef = useRef<WebSocket | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -185,7 +275,7 @@ function WebVoiceCall({ sessionId, isCaller, partnerHandle, partnerAvatarColor, 
   const pendingCandidates = useRef<RTCIceCandidateInit[]>([]);
   const signalErrorsRef = useRef(0);
 
-  // Tick timer
+  // Call timer
   useEffect(() => {
     if (status !== 'connected') return;
     tickRef.current = setInterval(() => setElapsed((e) => e + 1), 1000);
@@ -193,19 +283,32 @@ function WebVoiceCall({ sessionId, isCaller, partnerHandle, partnerAvatarColor, 
   }, [status]);
 
   const stopAll = useCallback(() => {
-    if (pollRef.current) clearInterval(pollRef.current);
-    if (tickRef.current) clearInterval(tickRef.current);
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    if (tickRef.current) { clearInterval(tickRef.current); tickRef.current = null; }
+    if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
   }, []);
+
+  // Send a signal — WebSocket primary, HTTP fallback
+  const sendSignal = useCallback((type: string, payload: string) => {
+    const ws = wsRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'signal', signalType: type, payload }));
+    } else {
+      postSignalHttp(sessionId, type, payload);
+    }
+  }, [sessionId]);
 
   const cleanup = useCallback((sendHangup = true) => {
     stopAll();
-    if (sendHangup) postSignal(sessionId, 'hangup', '{}');
+    if (sendHangup) sendSignal('hangup', '{}');
+    const ws = wsRef.current;
+    if (ws) { ws.onmessage = null; ws.onerror = null; ws.onclose = null; ws.close(); wsRef.current = null; }
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
     pcRef.current?.close();
     localStreamRef.current = null;
     pcRef.current = null;
-  }, [sessionId, stopAll]);
+    if (remoteAudioRef.current) { remoteAudioRef.current.srcObject = null; remoteAudioRef.current = null; }
+  }, [sendSignal, stopAll]);
 
   const handleDisconnect = useCallback(() => {
     setStatus('ended');
@@ -213,97 +316,105 @@ function WebVoiceCall({ sessionId, isCaller, partnerHandle, partnerAvatarColor, 
     setFeedbackOpen(true);
   }, [cleanup]);
 
-  const processSignals = useCallback(async () => {
+  // Process a single incoming signal
+  const processOneSignal = useCallback(async (sig: VoiceSignal) => {
     const pc = pcRef.current;
     if (!pc) return;
 
-    const signals = await fetchSignals(sessionId);
+    if (sig.type === 'hangup') {
+      setStatus('ended');
+      cleanup(false);
+      onEnd();
+      return;
+    }
+    if (sig.type === 'offer' && !isCaller && !offerSetRef.current) {
+      offerSetRef.current = true;
+      const desc: RTCSessionDescriptionInit = JSON.parse(sig.payload);
+      await pc.setRemoteDescription(new WebRTCNative.SessionDescription(desc));
+      for (const c of pendingCandidates.current)
+        await pc.addIceCandidate(new WebRTCNative.IceCandidate(c)).catch(() => {});
+      pendingCandidates.current = [];
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      sendSignal('answer', JSON.stringify(answer));
+    }
+    if (sig.type === 'answer' && isCaller && !answerSetRef.current) {
+      answerSetRef.current = true;
+      const desc: RTCSessionDescriptionInit = JSON.parse(sig.payload);
+      await pc.setRemoteDescription(new WebRTCNative.SessionDescription(desc));
+      for (const c of pendingCandidates.current)
+        await pc.addIceCandidate(new WebRTCNative.IceCandidate(c)).catch(() => {});
+      pendingCandidates.current = [];
+    }
+    if (sig.type === 'ice-candidate') {
+      const cand: RTCIceCandidateInit = JSON.parse(sig.payload);
+      if (pc.remoteDescription) {
+        await pc.addIceCandidate(new WebRTCNative.IceCandidate(cand)).catch(() => {});
+      } else {
+        pendingCandidates.current.push(cand);
+      }
+    }
+  }, [isCaller, cleanup, onEnd, sendSignal]);
 
+  // HTTP polling fallback (also catches any signals missed by WS)
+  const pollSignals = useCallback(async () => {
+    const signals = await fetchSignalsHttp(sessionId);
     if (signals === null) {
       signalErrorsRef.current += 1;
       if (signalErrorsRef.current >= MAX_SIGNAL_ERRORS) {
-        setError('Cannot reach the server. Please check your connection or try again later.');
+        setError('Cannot reach the server. Please check your connection.');
         cleanup(false);
       }
       return;
     }
     signalErrorsRef.current = 0;
+    for (const sig of signals) await processOneSignal(sig);
+  }, [sessionId, cleanup, processOneSignal]);
 
-    for (const sig of signals) {
-      if (sig.type === 'hangup') {
-        setStatus('ended');
-        cleanup(false);
-        onEnd();
-        return;
-      }
-      if (sig.type === 'offer' && !isCaller && !offerSetRef.current) {
-        offerSetRef.current = true;
-        const desc: RTCSessionDescriptionInit = JSON.parse(sig.payload);
-        await pc.setRemoteDescription(new RTCSessionDescription(desc));
-        for (const c of pendingCandidates.current)
-          await pc.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
-        pendingCandidates.current = [];
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        await postSignal(sessionId, 'answer', JSON.stringify(answer));
-      }
-      if (sig.type === 'answer' && isCaller && !answerSetRef.current) {
-        answerSetRef.current = true;
-        const desc: RTCSessionDescriptionInit = JSON.parse(sig.payload);
-        await pc.setRemoteDescription(new RTCSessionDescription(desc));
-        for (const c of pendingCandidates.current)
-          await pc.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
-        pendingCandidates.current = [];
-      }
-      if (sig.type === 'ice-candidate') {
-        const cand: RTCIceCandidateInit = JSON.parse(sig.payload);
-        if (pc.remoteDescription) {
-          await pc.addIceCandidate(new RTCIceCandidate(cand)).catch(() => {});
-        } else {
-          pendingCandidates.current.push(cand);
-        }
-      }
-    }
-  }, [sessionId, isCaller, cleanup, onEnd]);
-
-  // Bootstrap WebRTC
+  // Bootstrap
   useEffect(() => {
     let cancelled = false;
 
     async function init() {
-      // 1. Microphone
+      // 1. Fetch ICE servers (STUN + TURN)
+      const iceServers = await fetchIceServers();
+
+      // 2. Get microphone
       let stream: MediaStream;
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        stream = await WebRTCNative.getUserMedia({ audio: true, video: false });
       } catch {
-        if (!cancelled) setError('Microphone access denied. Please allow microphone access and try again.');
+        if (!cancelled) setError('Microphone access denied. Please allow mic access and try again.');
         return;
       }
       if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
       localStreamRef.current = stream;
 
-      // 2. Peer connection
-      const pc = new RTCPeerConnection({ iceServers: STUN_SERVERS });
+      // 3. RTCPeerConnection
+      const pc = new WebRTCNative.PeerConnection({ iceServers });
       pcRef.current = pc;
-      stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+      stream.getTracks().forEach((track: MediaStreamTrack) => pc.addTrack(track, stream));
 
-      // 3. Remote audio
-      pc.ontrack = (ev) => {
-        if (!remoteAudioRef.current) {
-          const audio = new Audio();
-          audio.autoplay = true;
-          remoteAudioRef.current = audio;
+      // 4. Remote audio
+      //    Web: play via HTMLAudioElement. Native: react-native-webrtc routes audio automatically.
+      pc.ontrack = (ev: RTCTrackEvent) => {
+        if (Platform.OS === 'web') {
+          if (!remoteAudioRef.current) {
+            const audio = new Audio();
+            audio.autoplay = true;
+            remoteAudioRef.current = audio;
+          }
+          remoteAudioRef.current.srcObject = ev.streams[0];
+          remoteAudioRef.current.play().catch(() => {});
         }
-        remoteAudioRef.current.srcObject = ev.streams[0];
-        remoteAudioRef.current.play().catch(() => {});
       };
 
-      // 4. ICE
-      pc.onicecandidate = (ev) => {
-        if (ev.candidate) postSignal(sessionId, 'ice-candidate', JSON.stringify(ev.candidate));
+      // 5. ICE candidates → signal
+      pc.onicecandidate = (ev: RTCPeerConnectionIceEvent) => {
+        if (ev.candidate) sendSignal('ice-candidate', JSON.stringify(ev.candidate));
       };
 
-      // 5. State changes
+      // 6. Connection state
       pc.onconnectionstatechange = () => {
         if (cancelled) return;
         if (pc.connectionState === 'connected') {
@@ -319,19 +430,39 @@ function WebVoiceCall({ sessionId, isCaller, partnerHandle, partnerAvatarColor, 
 
       if (!cancelled) setStatus(isCaller ? 'ringing' : 'connecting');
 
-      // 6. Caller sends offer
-      if (isCaller) {
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        await postSignal(sessionId, 'offer', JSON.stringify(offer));
+      // 7. Connect WebSocket signaling (before sending the offer so callee gets it in real-time)
+      const ws = await openSignalingSocket(sessionId);
+      if (ws && !cancelled) {
+        wsRef.current = ws;
+        ws.onmessage = (event: MessageEvent) => {
+          try {
+            const msg = JSON.parse(event.data as string) as {
+              type: string; signalType: string; payload: string;
+            };
+            if (msg.type === 'signal') {
+              processOneSignal({ id: 0, type: msg.signalType, payload: msg.payload });
+            }
+          } catch { /* ignore malformed */ }
+        };
+        ws.onerror = () => { wsRef.current = null; };
+        ws.onclose = () => { wsRef.current = null; };
       }
 
-      // 7. Poll + connection timeout
+      // 8. Caller sends offer
+      if (isCaller && !cancelled) {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        sendSignal('offer', JSON.stringify(offer));
+      }
+
+      // 9. HTTP fallback polling + connection timeout
       if (!cancelled) {
-        pollRef.current = setInterval(processSignals, POLL_INTERVAL_MS);
-        processSignals();
+        // One immediate poll to pick up signals sent before WS connected
+        pollSignals();
+        pollRef.current = setInterval(pollSignals, FALLBACK_POLL_MS);
+
         timeoutRef.current = setTimeout(() => {
-          if (!cancelled && pcRef.current?.connectionState !== 'connected') {
+          if (!cancelled && pc.connectionState !== 'connected') {
             setError("Couldn't reach your partner. They may have left or the connection timed out.");
             cleanup(true);
           }
@@ -350,7 +481,7 @@ function WebVoiceCall({ sessionId, isCaller, partnerHandle, partnerAvatarColor, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Mute
+  // Mute toggle
   useEffect(() => {
     localStreamRef.current?.getAudioTracks().forEach((t) => { t.enabled = !muted; });
   }, [muted]);
@@ -372,7 +503,7 @@ function WebVoiceCall({ sessionId, isCaller, partnerHandle, partnerAvatarColor, 
     }
   }, [comment, onEnd, rating, sessionId, submitting]);
 
-  // ── Feedback screen ──────────────────────────────────────────────────────
+  // ── Feedback screen ──────────────────────────────────────────────────────────
   if (feedbackOpen) {
     return (
       <View style={styles.container}>
@@ -409,7 +540,7 @@ function WebVoiceCall({ sessionId, isCaller, partnerHandle, partnerAvatarColor, 
     );
   }
 
-  // ── Error screen ─────────────────────────────────────────────────────────
+  // ── Error screen ─────────────────────────────────────────────────────────────
   if (error) {
     return (
       <View style={styles.container}>
@@ -427,10 +558,9 @@ function WebVoiceCall({ sessionId, isCaller, partnerHandle, partnerAvatarColor, 
     );
   }
 
-  // ── Call screen ──────────────────────────────────────────────────────────
+  // ── Call screen ──────────────────────────────────────────────────────────────
   return (
     <View style={styles.container}>
-      {/* Top: name + status */}
       <View style={styles.topSection}>
         {status === 'connected' && (
           <View style={styles.liveBadge}>
@@ -441,12 +571,8 @@ function WebVoiceCall({ sessionId, isCaller, partnerHandle, partnerAvatarColor, 
         <Text style={styles.handleText}>{partnerHandle}</Text>
         <View style={styles.statusRow}>
           {status === 'requesting' && <Text style={styles.statusLabel}>Requesting mic…</Text>}
-          {status === 'ringing' && (
-            <><Text style={styles.statusLabel}>Calling</Text><Ellipsis /></>
-          )}
-          {status === 'connecting' && (
-            <><Text style={styles.statusLabel}>Connecting</Text><Ellipsis /></>
-          )}
+          {status === 'ringing' && (<><Text style={styles.statusLabel}>Calling</Text><Ellipsis /></>)}
+          {status === 'connecting' && (<><Text style={styles.statusLabel}>Connecting</Text><Ellipsis /></>)}
           {status === 'connected' && (
             <Text style={[styles.statusLabel, { color: '#10b981', fontWeight: '700' }]}>
               {formatTime(elapsed)}
@@ -458,12 +584,9 @@ function WebVoiceCall({ sessionId, isCaller, partnerHandle, partnerAvatarColor, 
         </View>
       </View>
 
-      {/* Avatar + pulsing rings */}
       <CallAvatar label={initials(partnerHandle)} color={partnerAvatarColor} status={status} />
 
-      {/* Controls */}
       <View style={styles.controls}>
-        {/* Mute */}
         <TouchableOpacity
           style={[styles.circleBtn, muted && styles.circleBtnDanger]}
           onPress={() => setMuted((m) => !m)}
@@ -475,13 +598,11 @@ function WebVoiceCall({ sessionId, isCaller, partnerHandle, partnerAvatarColor, 
           </Text>
         </TouchableOpacity>
 
-        {/* End call — prominent center */}
         <TouchableOpacity style={styles.endPill} onPress={handleDisconnect} activeOpacity={0.8}>
           <Feather name="phone-off" size={22} color="#fff" />
           <Text style={styles.endPillText}>End Call</Text>
         </TouchableOpacity>
 
-        {/* Report */}
         <TouchableOpacity
           style={styles.circleBtn}
           onPress={() => {

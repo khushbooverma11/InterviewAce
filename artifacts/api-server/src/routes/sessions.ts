@@ -29,6 +29,7 @@ import {
 
 import { requireAuth } from "../middlewares/requireAuth";
 import { checkAndGrantAchievements } from "../lib/gamification";
+import { issueWsTicket } from "../ws-tickets";
 
 const router: IRouter = Router();
 router.use(requireAuth);
@@ -355,6 +356,26 @@ router.get("/discuss/sessions/:id/signals", async (req, res): Promise<void> => {
   }
 
   res.json(signals.map((s) => ({ id: s.id, type: s.type, payload: s.payload })));
+});
+
+/**
+ * GET /discuss/sessions/:id/ws-ticket
+ * Issues a one-time ticket (30 s TTL) to open a WebSocket signaling connection.
+ */
+router.get("/discuss/sessions/:id/ws-ticket", async (req, res): Promise<void> => {
+  const params = GetChatSessionParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const userId = req.appUser!.id;
+  const session = await loadSessionForUser(params.data.id, userId);
+  if (!session) {
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
+  const ticket = issueWsTicket(userId, params.data.id);
+  res.json({ ticket });
 });
 
 router.post("/discuss/sessions/:id/block", async (req, res): Promise<void> => {
