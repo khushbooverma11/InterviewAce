@@ -9,6 +9,8 @@ import {
   userBlocksTable,
   usersTable,
   webrtcSignalsTable,
+  sessionFeedbackTable,
+  notificationsTable,
 } from "@workspace/db";
 import {
   ListChatSessionsResponse,
@@ -399,6 +401,117 @@ router.post("/discuss/sessions/:id/block", async (req, res): Promise<void> => {
     .onConflictDoNothing();
 
   res.sendStatus(204);
+});
+
+// ---------------------------------------------------------------------------
+// Enhanced Session Feedback
+// POST /discuss/sessions/:id/feedback
+// ---------------------------------------------------------------------------
+router.post("/discuss/sessions/:id/feedback", async (req, res): Promise<void> => {
+  const params = GetChatSessionParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const body = z
+    .object({
+      overallRating: z.number().int().min(1).max(5),
+      communication: z.number().int().min(1).max(5).optional(),
+      helpfulness: z.number().int().min(1).max(5).optional(),
+      knowledge: z.number().int().min(1).max(5).optional(),
+      comments: z.string().trim().max(500).optional(),
+    })
+    .safeParse(req.body);
+
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+
+  const userId = req.appUser!.id;
+  const session = await loadSessionForUser(params.data.id, userId);
+  if (!session) {
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
+  if (session.status !== "ended") {
+    res.status(409).json({ error: "Session must be ended before submitting feedback" });
+    return;
+  }
+
+  const rateeId = session.userAId === userId ? session.userBId : session.userAId;
+
+  const [feedback] = await db
+    .insert(sessionFeedbackTable)
+    .values({
+      sessionId: params.data.id,
+      raterId: userId,
+      rateeId,
+      overallRating: body.data.overallRating,
+      communication: body.data.communication ?? null,
+      helpfulness: body.data.helpfulness ?? null,
+      knowledge: body.data.knowledge ?? null,
+      comments: body.data.comments ?? null,
+    })
+    .onConflictDoNothing()
+    .returning();
+
+  // Notify the ratee
+  if (feedback) {
+    await db.insert(notificationsTable).values({
+      userId: rateeId,
+      type: "feedback_received",
+      fromUserId: userId,
+      refId: feedback.id,
+      refType: "session_feedback",
+    });
+
+    const { sendToUser } = await import("../ws-server");
+    const [rater] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+    sendToUser(rateeId, {
+      type: "notification",
+      notification: {
+        type: "feedback_received",
+        fromHandle: rater?.anonymousHandle ?? "Someone",
+        fromAvatarColor: rater?.avatarColor ?? "#7c6cff",
+        fromUserId: userId,
+      },
+    });
+  }
+
+  res.status(201).json({ ok: true });
+});
+
+// ---------------------------------------------------------------------------
+// GET /discuss/sessions/:id/feedback — fetch feedback for a session
+// ---------------------------------------------------------------------------
+router.get("/discuss/sessions/:id/feedback", async (req, res): Promise<void> => {
+  const params = GetChatSessionParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const userId = req.appUser!.id;
+  const session = await loadSessionForUser(params.data.id, userId);
+  if (!session) {
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
+
+  // Return the feedback this user gave (if any)
+  const [feedback] = await db
+    .select()
+    .from(sessionFeedbackTable)
+    .where(
+      and(
+        eq(sessionFeedbackTable.sessionId, params.data.id),
+        eq(sessionFeedbackTable.raterId, userId),
+      ),
+    );
+
+  res.json(feedback ?? null);
 });
 
 export default router;

@@ -5,6 +5,8 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar, Platform, useColorScheme } from 'react-native';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { PersonalWSProvider } from '@/contexts/PersonalWSContext';
+import { IncomingCallModal } from '@/components/friends/IncomingCallModal';
 import {
   Inter_400Regular,
   Inter_500Medium,

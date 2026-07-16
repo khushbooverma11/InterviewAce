@@ -23,55 +23,118 @@ import {
 import type { DiscussPost, ChatSession } from '@workspace/api-client-react';
 import { PostCard } from '@/components/discuss/PostCard';
 import { AvatarBadge } from '@/components/discuss/AvatarBadge';
+import { usePersonalWS } from '@/contexts/PersonalWSContext';
+import { useFriends, useSendFriendRequest } from '@/hooks/useApi';
 
 const TOPIC_FILTERS = [
-  'All',
-  'Arrays',
-  'Trees',
-  'Graphs',
-  'Dynamic Programming',
-  'System Design',
-  'JavaScript',
-  'Python',
-  'React',
-  'SQL',
-  'Binary Search',
-  'Recursion',
+  'All', 'Arrays', 'Trees', 'Graphs', 'Dynamic Programming',
+  'System Design', 'JavaScript', 'Python', 'React', 'SQL',
+  'Binary Search', 'Recursion',
 ];
 
 type Tab = 'feed' | 'partners';
 
-function SessionCard({ session, onPress }: { session: ChatSession; onPress: () => void }) {
+// ---------------------------------------------------------------------------
+// History card (enhanced "Past Sessions")
+// ---------------------------------------------------------------------------
+function HistoryCard({
+  session,
+  isFriend,
+  onPress,
+  onAddFriend,
+}: {
+  session: ChatSession;
+  isFriend: boolean;
+  onPress: () => void;
+  onAddFriend: () => void;
+}) {
   const colors = useColors();
+  const sendFriend = useSendFriendRequest();
+
+  const durationLabel =
+    session.durationMinutes < 60
+      ? `${session.durationMinutes}m`
+      : `${Math.floor(session.durationMinutes / 60)}h`;
+
+  const dateLabel = session.endedAt
+    ? new Date(session.endedAt).toLocaleDateString(undefined, {
+        month: 'short', day: 'numeric',
+      })
+    : session.startedAt
+    ? new Date(session.startedAt).toLocaleDateString(undefined, {
+        month: 'short', day: 'numeric',
+      })
+    : '';
+
   const isActive = session.status === 'active';
+
   return (
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.85}
-      style={[styles.sessionCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+      style={[styles.historyCard, { backgroundColor: colors.card, borderColor: colors.border }]}
     >
-      <AvatarBadge handle={session.partnerHandle} avatarColor={session.partnerAvatarColor} size={40} />
-      <View style={styles.sessionInfo}>
-        <Text style={[styles.sessionHandle, { color: colors.foreground }]} numberOfLines={1}>
-          {session.partnerHandle}
-        </Text>
-        <Text style={[styles.sessionTopic, { color: colors.mutedForeground }]} numberOfLines={1}>
-          {session.topic}
-        </Text>
+      <View style={styles.historyTop}>
+        <AvatarBadge handle={session.partnerHandle} avatarColor={session.partnerAvatarColor} size={38} />
+        <View style={styles.historyInfo}>
+          <Text style={[styles.historyHandle, { color: colors.foreground }]} numberOfLines={1}>
+            {session.partnerHandle}
+          </Text>
+          <Text style={[styles.historyTopic, { color: colors.mutedForeground }]} numberOfLines={1}>
+            {session.topic}
+          </Text>
+        </View>
+        <View style={[styles.statusBadge, { backgroundColor: isActive ? '#10b98118' : colors.secondary }]}>
+          <Text style={[styles.statusText, { color: isActive ? '#10b981' : colors.mutedForeground }]}>
+            {isActive ? 'Active' : 'Ended'}
+          </Text>
+        </View>
       </View>
-      <View style={[styles.sessionBadge, { backgroundColor: isActive ? '#10b98118' : colors.secondary }]}>
-        <Text style={[styles.sessionBadgeText, { color: isActive ? '#10b981' : colors.mutedForeground }]}>
-          {isActive ? 'Active' : 'Ended'}
-        </Text>
+
+      <View style={[styles.historyMeta, { borderTopColor: colors.border }]}>
+        <View style={styles.metaItem}>
+          <Feather name="clock" size={11} color={colors.mutedForeground} />
+          <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{durationLabel}</Text>
+        </View>
+        <View style={styles.metaItem}>
+          <Feather name="calendar" size={11} color={colors.mutedForeground} />
+          <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{dateLabel}</Text>
+        </View>
+        <View style={styles.metaItem}>
+          <Feather name={session.chatType === 'voice' ? 'mic' : 'message-circle'} size={11} color={colors.mutedForeground} />
+          <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{session.chatType}</Text>
+        </View>
+
+        {/* Friend Request button — only for ended sessions */}
+        {!isActive && !isFriend && (
+          <TouchableOpacity
+            onPress={onAddFriend}
+            style={[styles.friendBtn, { backgroundColor: `${colors.primary}18`, borderColor: `${colors.primary}40` }]}
+            activeOpacity={0.8}
+          >
+            <Feather name="user-plus" size={11} color={colors.primary} />
+            <Text style={[styles.friendBtnText, { color: colors.primary }]}>Add Friend</Text>
+          </TouchableOpacity>
+        )}
+        {isFriend && (
+          <View style={[styles.friendBtn, { backgroundColor: '#10b98115', borderColor: '#10b98140' }]}>
+            <Feather name="user-check" size={11} color="#10b981" />
+            <Text style={[styles.friendBtnText, { color: '#10b981' }]}>Friends</Text>
+          </View>
+        )}
       </View>
     </TouchableOpacity>
   );
 }
 
+// ---------------------------------------------------------------------------
+// Main screen
+// ---------------------------------------------------------------------------
 export default function DiscussScreen() {
   const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { unreadCount } = usePersonalWS();
 
   const [activeTab, setActiveTab] = useState<Tab>('feed');
   const [search, setSearch] = useState('');
@@ -82,6 +145,8 @@ export default function DiscussScreen() {
     useListDiscussPosts(topicParam ? { topicTag: topicParam } : undefined);
   const { data: sessions, isLoading: sessionsLoading, refetch: refetchSessions } =
     useListChatSessions();
+  const { data: friends = [] } = useFriends();
+  const sendFriend = useSendFriendRequest();
 
   const toggleUpvote = useToggleDiscussPostUpvote();
 
@@ -93,67 +158,69 @@ export default function DiscussScreen() {
   ) ?? [];
 
   const handleUpvote = useCallback(
-    (post: DiscussPost) => {
-      toggleUpvote.mutate({ id: post.id });
-    },
+    (post: DiscussPost) => { toggleUpvote.mutate({ id: post.id }); },
     [toggleUpvote],
   );
 
   const activeSessions = sessions?.filter((s) => s.status === 'active') ?? [];
   const pastSessions = sessions?.filter((s) => s.status === 'ended') ?? [];
 
+  // Build a set of partner IDs that are already friends
+  const friendUserIds = new Set(friends.map((f) => f.userId));
+
+  const handleAddFriend = (session: ChatSession) => {
+    sendFriend.mutate({ sessionId: session.id });
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Custom Header */}
-      <View
-        style={[
-          styles.header,
-          {
-            paddingTop: insets.top + 12,
-            backgroundColor: colors.background,
-            borderBottomColor: colors.border,
-          },
-        ]}
-      >
+      {/* Header */}
+      <View style={[styles.header, { paddingTop: insets.top + 12, borderBottomColor: colors.border }]}>
         <Text style={[styles.headerTitle, { color: colors.foreground }]}>Discuss</Text>
-        <TouchableOpacity
-          onPress={() => router.push('/discuss/new-post')}
-          style={[styles.headerBtn, { backgroundColor: colors.primary }]}
-          activeOpacity={0.8}
-        >
-          <Feather name="plus" size={16} color="#fff" />
-          <Text style={styles.headerBtnText}>New Post</Text>
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          {/* Notification bell */}
+          <TouchableOpacity
+            onPress={() => router.push('/notifications' as never)}
+            style={styles.bellBtn}
+          >
+            <Feather name="bell" size={20} color={colors.foreground} />
+            {unreadCount > 0 && (
+              <View style={[styles.badge, { backgroundColor: colors.primary }]}>
+                <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => router.push('/discuss/new-post')}
+            style={[styles.headerBtn, { backgroundColor: colors.primary }]}
+            activeOpacity={0.8}
+          >
+            <Feather name="plus" size={16} color="#fff" />
+            <Text style={styles.headerBtnText}>New Post</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* Segmented Control */}
+      {/* Segmented tabs */}
       <View style={[styles.segmented, { borderBottomColor: colors.border }]}>
         {(['feed', 'partners'] as Tab[]).map((tab) => (
           <TouchableOpacity
             key={tab}
             onPress={() => setActiveTab(tab)}
-            style={[
-              styles.segTab,
-              activeTab === tab && { borderBottomColor: colors.primary, borderBottomWidth: 2 },
-            ]}
+            style={[styles.segTab, activeTab === tab && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
             activeOpacity={0.7}
           >
-            <Text
-              style={[
-                styles.segTabText,
-                { color: activeTab === tab ? colors.primary : colors.mutedForeground },
-              ]}
-            >
+            <Text style={[styles.segTabText, { color: activeTab === tab ? colors.primary : colors.mutedForeground }]}>
               {tab === 'feed' ? 'Community Feed' : 'Study Partners'}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      {/* Feed Tab */}
+      {/* ── Feed Tab ── */}
       {activeTab === 'feed' && (
         <>
-          {/* Search */}
           <View style={[styles.searchRow, { borderBottomColor: colors.border }]}>
             <View style={[styles.searchBox, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
               <Feather name="search" size={15} color={colors.mutedForeground} />
@@ -173,32 +240,19 @@ export default function DiscussScreen() {
             </View>
           </View>
 
-          {/* Topic filter */}
           <View style={[styles.topicScrollContainer, { borderBottomColor: colors.border }]}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.topicScroll}
-            >
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.topicScroll}>
               {TOPIC_FILTERS.map((topic) => (
                 <TouchableOpacity
                   key={topic}
                   onPress={() => setActiveTopic(topic)}
                   activeOpacity={0.7}
-                  style={[
-                    styles.topicFilterChip,
-                    {
-                      backgroundColor: activeTopic === topic ? colors.primary : colors.secondary,
-                      borderColor: activeTopic === topic ? colors.primary : colors.border,
-                    },
-                  ]}
+                  style={[styles.topicFilterChip, {
+                    backgroundColor: activeTopic === topic ? colors.primary : colors.secondary,
+                    borderColor: activeTopic === topic ? colors.primary : colors.border,
+                  }]}
                 >
-                  <Text
-                    style={[
-                      styles.topicFilterText,
-                      { color: activeTopic === topic ? '#fff' : colors.mutedForeground },
-                    ]}
-                  >
+                  <Text style={[styles.topicFilterText, { color: activeTopic === topic ? '#fff' : colors.mutedForeground }]}>
                     {topic}
                   </Text>
                 </TouchableOpacity>
@@ -206,24 +260,15 @@ export default function DiscussScreen() {
             </ScrollView>
           </View>
 
-          {/* Post list */}
           {postsLoading ? (
-            <View style={styles.centered}>
-              <ActivityIndicator color={colors.primary} />
-            </View>
+            <View style={styles.centered}><ActivityIndicator color={colors.primary} /></View>
           ) : (
             <FlatList
               style={styles.flex1}
               data={filteredPosts}
               keyExtractor={(item) => String(item.id)}
               contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 80 }]}
-              refreshControl={
-                <RefreshControl
-                  refreshing={isRefetching}
-                  onRefresh={refetchPosts}
-                  tintColor={colors.primary}
-                />
-              }
+              refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetchPosts} tintColor={colors.primary} />}
               ListEmptyComponent={
                 <View style={styles.empty}>
                   <Feather name="message-square" size={40} color={colors.border} />
@@ -233,27 +278,21 @@ export default function DiscussScreen() {
                 </View>
               }
               renderItem={({ item }) => (
-                <PostCard
-                  post={item}
-                  onPress={() => router.push(`/discuss/${item.id}`)}
-                  onUpvote={() => handleUpvote(item)}
-                />
+                <PostCard post={item} onPress={() => router.push(`/discuss/${item.id}`)} onUpvote={() => handleUpvote(item)} />
               )}
             />
           )}
         </>
       )}
 
-      {/* Partners Tab */}
+      {/* ── Partners Tab ── */}
       {activeTab === 'partners' && (
         <FlatList
           data={[]}
           keyExtractor={() => ''}
           renderItem={() => null}
           contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 80 }]}
-          refreshControl={
-            <RefreshControl refreshing={sessionsLoading} onRefresh={refetchSessions} tintColor={colors.primary} />
-          }
+          refreshControl={<RefreshControl refreshing={sessionsLoading} onRefresh={refetchSessions} tintColor={colors.primary} />}
           ListHeaderComponent={
             <View>
               {/* Find Partner CTA */}
@@ -267,43 +306,64 @@ export default function DiscussScreen() {
                 </View>
                 <View style={styles.findPartnerText}>
                   <Text style={styles.findPartnerTitle}>Find a Study Partner</Text>
-                  <Text style={styles.findPartnerSub}>
-                    Get anonymously matched for a text or voice session
-                  </Text>
+                  <Text style={styles.findPartnerSub}>Get matched for a text or voice session</Text>
                 </View>
                 <Feather name="arrow-right" size={20} color="rgba(255,255,255,0.7)" />
               </TouchableOpacity>
 
-              {/* Active sessions */}
-              {activeSessions.length > 0 && (
-                <View style={styles.sectionHeader}>
-                  <View style={[styles.activeDot, { backgroundColor: '#10b981' }]} />
-                  <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-                    Active Sessions
+              {/* Friends shortcut */}
+              <TouchableOpacity
+                onPress={() => router.push('/friends' as never)}
+                activeOpacity={0.85}
+                style={[styles.friendsCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+              >
+                <View style={[styles.friendsIcon, { backgroundColor: '#8b5cf618' }]}>
+                  <Feather name="user-check" size={20} color="#8b5cf6" />
+                </View>
+                <View style={styles.findPartnerText}>
+                  <Text style={[styles.friendsTitle, { color: colors.foreground }]}>
+                    Friends {friends.length > 0 ? `· ${friends.length}` : ''}
+                  </Text>
+                  <Text style={[styles.friendsSub, { color: colors.mutedForeground }]}>
+                    Message or call your study friends
                   </Text>
                 </View>
-              )}
-              {activeSessions.map((s) => (
-                <SessionCard
-                  key={s.id}
-                  session={s}
-                  onPress={() => router.push(`/discuss/chat/${s.id}`)}
-                />
-              ))}
+                <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+              </TouchableOpacity>
 
-              {/* Past sessions */}
+              {/* Active Sessions */}
+              {activeSessions.length > 0 && (
+                <>
+                  <View style={styles.sectionHeader}>
+                    <View style={[styles.activeDot, { backgroundColor: '#10b981' }]} />
+                    <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Active Sessions</Text>
+                  </View>
+                  {activeSessions.map((s) => (
+                    <HistoryCard
+                      key={s.id}
+                      session={s}
+                      isFriend={friendUserIds.has((s as unknown as { partnerId: number }).partnerId ?? -1)}
+                      onPress={() => router.push(`/discuss/chat/${s.id}`)}
+                      onAddFriend={() => handleAddFriend(s)}
+                    />
+                  ))}
+                </>
+              )}
+
+              {/* History (past sessions) */}
               {pastSessions.length > 0 && (
                 <View style={styles.sectionHeader}>
-                  <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-                    Past Sessions
-                  </Text>
+                  <Feather name="clock" size={14} color={colors.mutedForeground} />
+                  <Text style={[styles.sectionTitle, { color: colors.foreground }]}>History</Text>
                 </View>
               )}
               {pastSessions.map((s) => (
-                <SessionCard
+                <HistoryCard
                   key={s.id}
                   session={s}
+                  isFriend={friendUserIds.has((s as unknown as { partnerId: number }).partnerId ?? -1)}
                   onPress={() => router.push(`/discuss/chat/${s.id}`)}
+                  onAddFriend={() => handleAddFriend(s)}
                 />
               ))}
 
@@ -334,104 +394,80 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   headerTitle: { fontSize: 26, fontWeight: '800' },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  bellBtn: { position: 'relative', padding: 4 },
+  badge: {
+    position: 'absolute', top: 0, right: 0,
+    minWidth: 16, height: 16, borderRadius: 8,
+    alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3,
+  },
+  badgeText: { color: '#fff', fontSize: 9, fontWeight: '700' },
   headerBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
   },
   headerBtnText: { color: '#fff', fontWeight: '600', fontSize: 13 },
-  segmented: {
-    flexDirection: 'row',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
+  segmented: { flexDirection: 'row', borderBottomWidth: StyleSheet.hairlineWidth },
   segTab: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+    flex: 1, alignItems: 'center', paddingVertical: 12,
+    borderBottomWidth: 2, borderBottomColor: 'transparent',
   },
   segTabText: { fontSize: 13, fontWeight: '600' },
-  searchRow: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
+  searchRow: { paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },
   searchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: Platform.OS === 'ios' ? 10 : 6,
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    borderRadius: 10, borderWidth: 1,
+    paddingHorizontal: 12, paddingVertical: Platform.OS === 'ios' ? 10 : 6,
   },
   searchInput: { flex: 1, fontSize: 14 },
   flex1: { flex: 1 },
-  topicScrollContainer: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    height: 52,
-    justifyContent: 'center',
-  },
-  topicScroll: {
-    paddingHorizontal: 16,
-    gap: 8,
-    alignItems: 'center',
-  },
-  topicFilterChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 100,
-    borderWidth: 1,
-  },
+  topicScrollContainer: { borderBottomWidth: StyleSheet.hairlineWidth, height: 52, justifyContent: 'center' },
+  topicScroll: { paddingHorizontal: 16, gap: 8, alignItems: 'center' },
+  topicFilterChip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 100, borderWidth: 1 },
   topicFilterText: { fontSize: 12, fontWeight: '500' },
   list: { padding: 16 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
   empty: { alignItems: 'center', paddingTop: 60, gap: 12 },
   emptyText: { fontSize: 14, textAlign: 'center', maxWidth: 240 },
   findPartnerCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    borderRadius: 16,
-    padding: 18,
-    marginBottom: 20,
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    borderRadius: 16, padding: 18, marginBottom: 12,
   },
   findPartnerIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 52, height: 52, borderRadius: 26,
     backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
   },
   findPartnerText: { flex: 1 },
   findPartnerTitle: { color: '#fff', fontSize: 16, fontWeight: '700' },
   findPartnerSub: { color: 'rgba(255,255,255,0.75)', fontSize: 12, marginTop: 2 },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 10,
-    marginTop: 4,
+  friendsCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    borderRadius: 14, borderWidth: 1, padding: 14, marginBottom: 20,
   },
+  friendsIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  friendsTitle: { fontSize: 14, fontWeight: '700' },
+  friendsSub: { fontSize: 12, marginTop: 2 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10, marginTop: 4 },
   activeDot: { width: 8, height: 8, borderRadius: 4 },
   sectionTitle: { fontSize: 15, fontWeight: '700' },
-  sessionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 14,
-    marginBottom: 8,
+  // History card
+  historyCard: { borderRadius: 14, borderWidth: 1, marginBottom: 10, overflow: 'hidden' },
+  historyTop: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
+  historyInfo: { flex: 1 },
+  historyHandle: { fontSize: 14, fontWeight: '600' },
+  historyTopic: { fontSize: 12, marginTop: 2 },
+  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 100 },
+  statusText: { fontSize: 11, fontWeight: '600' },
+  historyMeta: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: 14, paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth, flexWrap: 'wrap',
   },
-  sessionInfo: { flex: 1 },
-  sessionHandle: { fontSize: 14, fontWeight: '600' },
-  sessionTopic: { fontSize: 12, marginTop: 2 },
-  sessionBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 100 },
-  sessionBadgeText: { fontSize: 11, fontWeight: '600' },
+  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  metaText: { fontSize: 11 },
+  friendBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 100, borderWidth: 1, marginLeft: 'auto',
+  },
+  friendBtnText: { fontSize: 11, fontWeight: '600' },
 });

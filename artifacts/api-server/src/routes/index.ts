@@ -8,6 +8,9 @@ import matchingRouter from "./matching";
 import sessionsRouter from "./sessions";
 import achievementsRouter from "./achievements";
 import iceRouter from "./ice";
+import friendsRouter from "./friends";
+import messagesRouter from "./messages";
+import notificationsRouter from "./notifications";
 
 const router: IRouter = Router();
 
@@ -20,5 +23,8 @@ router.use(matchingRouter);
 router.use(sessionsRouter);
 router.use(achievementsRouter);
 router.use(iceRouter);
+router.use(friendsRouter);
+router.use(messagesRouter);
+router.use(notificationsRouter);
 
 export default router;
