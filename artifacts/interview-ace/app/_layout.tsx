@@ -122,15 +122,10 @@ export default function RootLayout() {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { tokenCache } = require('@clerk/expo/token-cache');
 
-    // npm.clerk.dev (Clerk's default CDN) is unreachable from Replit's sandbox.
-    // Load Clerk JS from jsDelivr instead, which is accessible.
-    const clerkJSUrl = 'https://cdn.jsdelivr.net/npm/@clerk/clerk-js@6/dist/clerk.browser.js';
-
-    // ClerkLoaded is intentionally omitted: it blocks render until Clerk's CDN
-    // JS finishes loading, which can take several seconds and leaves the screen
-    // blank. Auth state is guarded per-screen via useAuth() / isLoaded checks.
+    // ClerkLoaded is intentionally omitted: it blocks render until Clerk
+    // initialises. Auth state is guarded per-screen via useAuth() / isLoaded.
     return (
-      <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache} proxyUrl={proxyUrl} clerkJSUrl={clerkJSUrl}>
+      <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache} proxyUrl={proxyUrl}>
         <AppProviders>
           <ThemedStack />
         </AppProviders>
