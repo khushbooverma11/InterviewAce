@@ -1,0 +1,176 @@
+The application is already working, and the Find Partner feature is functional—users can successfully connect with each other. Do not redesign, restructure, or rewrite the existing implementation. Analyze the current codebase first and extend the existing functionality with minimal changes while preserving the current UI, architecture, routing, authentication, and design system.
+
+Goal
+
+I want to evolve the Find Partner feature into a complete peer-learning experience similar in functionality to PeerUp while maintaining the existing look and feel of my application.
+
+1. Replace "Active Sessions" with "History"
+
+The current Active Sessions section should become History.
+
+History should display:
+
+Previously connected learners
+Date and time of the session
+Session duration
+Topic discussed
+Feedback given
+Session status
+Whether the learner is now a friend
+
+Each history item should allow users to:
+
+View previous session details
+View feedback
+Send a Friend Request (if not already friends)
+Block the learner
+Remove the history entry
+2. Friend System
+
+After a learning session ends, users should be able to send a Friend Request.
+
+Flow:
+
+User A sends a friend request.
+User B receives a notification.
+User B can Accept or Reject.
+If accepted, both users become friends.
+
+Once users become friends, they should appear in a dedicated Friends section.
+
+Each friend should display:
+
+Avatar
+Display name (or anonymous nickname if that is the app's design)
+Online/Offline status
+Last active time
+Current learning topic (optional)
+
+Actions:
+
+Message
+Voice Call
+Remove Friend
+Block User
+3. Real-Time Messaging
+
+Friends should be able to message each other anytime without having to match again.
+
+Support:
+
+Real-time chat
+Typing indicator
+Read receipts
+Delivered status
+Emoji reactions
+Code snippets
+Image/file sharing
+Persistent chat history
+4. Voice Calling
+
+Friends should be able to call each other.
+
+Flow:
+
+User A clicks Call.
+If User B is online, show an incoming call screen with:
+Accept
+Decline
+If accepted, establish a voice call.
+During the call:
+Call timer
+Mute
+Speaker
+End Call
+If User B is offline, show:
+"This learner is currently offline."
+5. Feedback System
+
+When a learning session ends:
+
+Prompt users to provide:
+
+Overall Rating
+Communication
+Helpfulness
+Knowledge
+Comments
+
+Store this feedback and display it in History.
+
+6. Unfriend
+
+Friends should have an Unfriend option.
+
+When users unfriend:
+
+Remove each other from the Friends list.
+Preserve previous chat history.
+Allow them to become friends again in the future.
+7. Block User
+
+Users should be able to:
+
+Block
+Unblock
+
+Blocked users should:
+
+Not be matched again.
+Not be able to message.
+Not be able to call.
+Not be able to send friend requests.
+8. Notifications
+
+Add real-time notifications for:
+
+Friend Request Received
+Friend Request Accepted
+Incoming Call
+New Message
+Session Ended
+Feedback Received
+9. Online Presence
+
+Show user status:
+
+Online
+Offline
+Busy
+In Session
+
+Update status in real time.
+
+10. Production Quality
+
+The application is already working.
+
+Do not replace the current implementation.
+
+Instead:
+
+Extend the existing functionality.
+Reuse current components.
+Maintain the current design system.
+Preserve all working features.
+Keep database changes minimal and consistent with the existing schema.
+Make the implementation scalable and production-ready.
+Development Rules
+Analyze the project before making changes.
+Do not redesign the UI.
+Do not restructure folders.
+Do not rewrite working code.
+Modify only the files required.
+Reuse existing APIs, components, and database models wherever possible.
+Keep all existing functionality intact.
+Implement these features incrementally.
+Ensure responsive design and consistent styling.
+
+Before implementing:
+
+Explain how the existing Find Partner feature currently works.
+List the files that need to be modified.
+Describe the database/schema changes required (if any).
+Then implement the enhancements with minimal changes.
+
+Objective: Transform the existing working Find Partner feature into a production-ready peer-learning system with History, Friends, real-time messaging, voice calling, feedback, notifications, unfriend/block functionality, and online presence, while preserving the existing architecture and user experience.
