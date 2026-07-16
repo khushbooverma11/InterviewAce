@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { AUTH_ENABLED } from '@/app/_layout';
 import { useGetMe, useGetDashboard } from '@workspace/api-client-react';
@@ -254,6 +255,7 @@ function AuthenticatedProfile() {
 function GuestProfile() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { completedCount } = useLearnProgress();
   const [solvedCount, setSolvedCount] = useState(0);
 
@@ -294,12 +296,22 @@ function GuestProfile() {
             <Feather name="user" size={28} color={colors.primary} />
           </View>
           <View style={styles.guestText}>
-            <Text style={[styles.guestTitle, { color: colors.foreground }]}>Guest Mode</Text>
+            <Text style={[styles.guestTitle, { color: colors.foreground }]}>Sign in to unlock</Text>
             <Text style={[styles.guestSub, { color: colors.mutedForeground }]}>
-              Add your Clerk keys to unlock your profile, achievements, and study partner matching.
+              Create an account to save progress, earn achievements, and find study partners.
             </Text>
           </View>
         </View>
+        {AUTH_ENABLED && (
+          <TouchableOpacity
+            style={[styles.signInBtn, { backgroundColor: colors.primary }]}
+            onPress={() => router.push('/sign-in')}
+            activeOpacity={0.85}
+          >
+            <Feather name="log-in" size={18} color="#fff" />
+            <Text style={styles.signInBtnText}>Sign In / Create Account</Text>
+          </TouchableOpacity>
+        )}
 
         {/* Local progress */}
         <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>LOCAL PROGRESS</Text>
@@ -449,4 +461,15 @@ const styles = StyleSheet.create({
   guestText: { flex: 1, gap: 4 },
   guestTitle: { fontSize: 16, fontWeight: '700' },
   guestSub: { fontSize: 13, lineHeight: 18 },
+  signInBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 14,
+    paddingVertical: 14,
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  signInBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 });
