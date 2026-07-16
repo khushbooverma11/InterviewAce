@@ -150,10 +150,14 @@ export default function TabLayout() {
       return () => setAuthTokenGetter(null);
     }, [getToken, isSignedIn]);
 
-    // While Clerk is still initialising, render nothing — no redirect, no flash.
-    // Redirecting before isLoaded causes a sign-in flash and a double-redirect
-    // crash when Clerk then resolves isSignedIn=true.
-    if (!isLoaded) return null;
+    // While Clerk is still initialising, show a centered spinner — no redirect,
+    // no flash. Redirecting before isLoaded causes a sign-in flash and a
+    // double-redirect crash when Clerk then resolves isSignedIn=true.
+    if (!isLoaded) return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' }}>
+        <ActivityIndicator size="large" color="#3B82F6" />
+      </View>
+    );
     if (!isSignedIn) return <Redirect href="/(auth)/sign-in" />;
   }
 
