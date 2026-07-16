@@ -10,7 +10,7 @@
  *  - Both sides exchange ICE candidates via HTTP polling every 1.5 s.
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform, ActivityIndicator, Alert, TextInput } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
 import { customFetch } from '@workspace/api-client-react';
@@ -122,6 +122,10 @@ function WebVoiceCall({
   const [muted, setMuted] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [selectedRating, setSelectedRating] = useState(5);
+  const [comment, setComment] = useState('');
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
@@ -153,11 +157,63 @@ function WebVoiceCall({
     pcRef.current = null;
   }, [sessionId, stopPolling]);
 
-  const handleEnd = useCallback(() => {
+  const handleDisconnect = useCallback(() => {
     setStatus('ended');
     cleanup(true);
+    setFeedbackOpen(true);
+  }, [cleanup]);
+
+  const handleEnd = useCallback(() => {
+    setFeedbackOpen(false);
     onEnd();
-  }, [cleanup, onEnd]);
+  }, [onEnd]);
+
+  const submitFeedback = useCallback(async (skip = false) => {
+    if (submittingFeedback) return;
+
+    try {
+      setSubmittingFeedback(true);
+      if (!skip) {
+        await customFetch(`/api/discuss/sessions/${sessionId}/rate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            rating: selectedRating,
+            comment: comment.trim() || undefined,
+          }),
+        });
+      }
+    } catch {
+      // Non-blocking: we still want the user to leave the call gracefully.
+    } finally {
+      setSubmittingFeedback(false);
+      setFeedbackOpen(false);
+      onEnd();
+    }
+  }, [comment, onEnd, selectedRating, sessionId, submittingFeedback]);
+
+  const handleReport = useCallback(() => {
+    Alert.alert('Report partner', 'Why do you want to report this person?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Spam', onPress: () => submitReport('spam') },
+      { text: 'Harassment', onPress: () => submitReport('harassment') },
+      { text: 'Inappropriate', onPress: () => submitReport('inappropriate') },
+      { text: 'Other', onPress: () => submitReport('other') },
+    ]);
+  }, [sessionId]);
+
+  const submitReport = useCallback(async (reason: string) => {
+    try {
+      await customFetch(`/api/discuss/sessions/${sessionId}/report`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason, details: comment.trim() || undefined }),
+      });
+      Alert.alert('Thanks', 'Your report has been submitted.');
+    } catch {
+      Alert.alert('Unable to submit report', 'Please try again in a moment.');
+    }
+  }, [comment, sessionId]);
 
   // Process signals polled from the server
   const processSignals = useCallback(async () => {
@@ -363,16 +419,57 @@ function WebVoiceCall({
           </Text>
         </TouchableOpacity>
 
-        {/* End call */}
-        <TouchableOpacity
-          style={styles.endBtn}
-          onPress={handleEnd}
-          activeOpacity={0.8}
-        >
+        <TouchableOpacity style={styles.secondaryBtn} onPress={handleReport} activeOpacity={0.8}>
+          <Feather name="flag" size={20} color={colors.foreground} />
+          <Text style={[styles.controlLabel, { color: colors.foreground }]}>Report</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.endBtn} onPress={handleDisconnect} activeOpacity={0.8}>
           <Feather name="phone-off" size={22} color="#fff" />
-          <Text style={styles.endBtnText}>End</Text>
+          <Text style={styles.endBtnText}>Disconnect</Text>
         </TouchableOpacity>
       </View>
+
+      {feedbackOpen && (
+        <View style={styles.feedbackOverlay}>
+          <View style={styles.feedbackCard}>
+            <Text style={[styles.feedbackTitle, { color: colors.foreground }]}>How was this call?</Text>
+            <Text style={[styles.feedbackSub, { color: colors.mutedForeground }]}>Leave a quick rating and note for your partner.</Text>
+
+            <View style={styles.ratingRow}>
+              {[1, 2, 3, 4, 5].map((value) => (
+                <TouchableOpacity
+                  key={value}
+                  onPress={() => setSelectedRating(value)}
+                  activeOpacity={0.8}
+                  style={[styles.starBtn, selectedRating >= value && styles.starBtnActive]}
+                >
+                  <Text style={styles.starText}>{value}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TextInput
+              style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.secondary }]}
+              placeholder="Optional note"
+              placeholderTextColor={colors.mutedForeground}
+              value={comment}
+              onChangeText={setComment}
+              multiline
+              maxLength={160}
+            />
+
+            <View style={styles.feedbackActions}>
+              <TouchableOpacity style={styles.skipBtn} onPress={() => submitFeedback(true)} activeOpacity={0.8}>
+                <Text style={[styles.skipText, { color: colors.foreground }]}>Skip</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.submitBtn} onPress={() => submitFeedback(false)} activeOpacity={0.8}>
+                <Text style={styles.submitText}>{submittingFeedback ? 'Submitting…' : 'Submit'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -433,8 +530,10 @@ const styles = StyleSheet.create({
   },
   controls: {
     flexDirection: 'row',
-    gap: 20,
-    marginTop: 40,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 12,
+    marginTop: 36,
   },
   controlBtn: {
     width: 90,
@@ -444,6 +543,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 5,
+  },
+  secondaryBtn: {
+    width: 90,
+    height: 72,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: '#475569',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    backgroundColor: '#111827',
   },
   controlLabel: {
     fontSize: 11,
@@ -455,10 +565,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     backgroundColor: '#ef4444',
-    paddingHorizontal: 32,
+    paddingHorizontal: 26,
     paddingVertical: 18,
     borderRadius: 18,
-    minWidth: 90,
+    minWidth: 120,
   },
   endBtnText: {
     color: '#fff',
@@ -470,5 +580,86 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 12,
     lineHeight: 20,
+  },
+  feedbackOverlay: {
+    position: 'absolute',
+    inset: 0,
+    backgroundColor: 'rgba(2, 6, 23, 0.72)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  feedbackCard: {
+    width: '100%',
+    maxWidth: 420,
+    borderRadius: 24,
+    padding: 20,
+    backgroundColor: '#111827',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  feedbackTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  feedbackSub: {
+    fontSize: 13,
+    marginTop: 6,
+    lineHeight: 18,
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 16,
+  },
+  starBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#475569',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  starBtnActive: {
+    backgroundColor: '#f59e0b',
+    borderColor: '#f59e0b',
+  },
+  starText: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 16,
+    minHeight: 72,
+    textAlignVertical: 'top',
+  },
+  feedbackActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+    marginTop: 16,
+  },
+  skipBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  skipText: {
+    fontWeight: '600',
+  },
+  submitBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#2563eb',
+  },
+  submitText: {
+    color: '#fff',
+    fontWeight: '700',
   },
 });

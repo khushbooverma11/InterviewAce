@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and, or, asc } from "drizzle-orm";
+import { z } from "zod/v4";
 import {
   db,
   chatSessionsTable,
@@ -228,6 +229,48 @@ router.post("/discuss/sessions/:id/report", async (req, res): Promise<void> => {
       createdAt: report.createdAt,
     }),
   );
+});
+
+router.post("/discuss/sessions/:id/rate", async (req, res): Promise<void> => {
+  const params = GetChatSessionParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const body = z
+    .object({
+      rating: z.number().int().min(1).max(5),
+      comment: z.string().trim().max(160).optional(),
+    })
+    .safeParse(req.body);
+
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+
+  const userId = req.appUser!.id;
+  const session = await loadSessionForUser(params.data.id, userId);
+  if (!session) {
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
+
+  const reportedUserId = session.userAId === userId ? session.userBId : session.userAId;
+  const details = body.data.comment
+    ? `rating:${body.data.rating}; comment:${body.data.comment}`
+    : `rating:${body.data.rating}`;
+
+  await db.insert(sessionReportsTable).values({
+    sessionId: params.data.id,
+    reporterId: userId,
+    reportedUserId,
+    reason: "other",
+    details,
+  });
+
+  res.status(201).json({ ok: true, rating: body.data.rating });
 });
 
 // ---------------------------------------------------------------------------
