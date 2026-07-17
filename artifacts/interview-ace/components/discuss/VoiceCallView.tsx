@@ -114,15 +114,25 @@ function getWsBase(): string {
 }
 
 // ── ICE server fetcher ────────────────────────────────────────────────────────
+/**
+ * ICE servers are ALWAYS fetched from the backend — never hardcoded here.
+ *
+ * The backend selects the active provider based on environment variables:
+ *   ICE_PROVIDER=openrelay  →  free public OpenRelay servers (dev default)
+ *   ICE_PROVIDER=metered    →  Metered.ca managed TURN (early production)
+ *   ICE_PROVIDER=coturn     →  self-hosted Coturn (production at scale)
+ *
+ * To switch providers, change ICE_PROVIDER on the server and redeploy.
+ * No changes to this file are ever needed.
+ *
+ * See artifacts/api-server/src/ice/ for the provider abstraction.
+ */
 async function fetchIceServers(): Promise<RTCIceServer[]> {
-  try {
-    const result = await customFetch<{ iceServers: RTCIceServer[] }>('/api/ice-servers');
-    if (Array.isArray(result.iceServers) && result.iceServers.length > 0) return result.iceServers;
-  } catch { /* fall through */ }
-  return [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-  ];
+  const result = await customFetch<{ iceServers: RTCIceServer[] }>('/api/ice-servers');
+  if (!Array.isArray(result.iceServers) || result.iceServers.length === 0) {
+    throw new Error('No ICE servers returned from backend — check ICE_PROVIDER configuration.');
+  }
+  return result.iceServers;
 }
 
 // ── WS signaling socket ───────────────────────────────────────────────────────
