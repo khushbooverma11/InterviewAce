@@ -4,13 +4,34 @@ import * as schema from "./schema";
 
 const { Pool } = pg;
 
-if (!process.env.DATABASE_URL) {
+/**
+ * Database connection.
+ *
+ * Priority:
+ *   1. SUPABASE_DATABASE_URL  — Supabase (production target)
+ *   2. DATABASE_URL            — Replit built-in PostgreSQL (fallback / local dev)
+ *
+ * To switch to Supabase: set SUPABASE_DATABASE_URL to the connection pooler
+ * URI from Supabase → Settings → Database → Connection pooling (port 6543).
+ * No code changes are needed.
+ */
+const connectionString = process.env.SUPABASE_DATABASE_URL ?? process.env.DATABASE_URL;
+
+if (!connectionString) {
   throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
+    "No database connection string found. Set SUPABASE_DATABASE_URL (Supabase) " +
+    "or DATABASE_URL (Replit built-in PostgreSQL).",
   );
 }
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const isSupabase = Boolean(process.env.SUPABASE_DATABASE_URL);
+
+export const pool = new Pool({
+  connectionString,
+  // Supabase requires SSL; Replit built-in PostgreSQL does not.
+  ssl: isSupabase ? { rejectUnauthorized: false } : undefined,
+});
+
 export const db = drizzle(pool, { schema });
 
 export * from "./schema";
