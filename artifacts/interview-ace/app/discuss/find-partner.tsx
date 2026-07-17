@@ -22,23 +22,34 @@ import {
 } from '@workspace/api-client-react';
 import type {
   MatchRequestInputSkillLevel,
-  MatchRequestInputChatType,
 } from '@workspace/api-client-react';
 
-const TOPICS = [
-  'Arrays & Hashing', 'Two Pointers', 'Sliding Window', 'Stack',
-  'Binary Search', 'Linked List', 'Trees', 'Graphs',
-  'Dynamic Programming', 'System Design', 'Sorting', 'Recursion',
+// High-level learning tracks (DSA subtopics chosen inside the session)
+const TRACKS = [
+  'DSA',
+  'Low Level Design (LLD)',
+  'High Level Design (HLD)',
+  'Java',
+  'JavaScript',
+  'React',
+  'SQL',
+  'Python',
+  'C++',
+  'Other',
 ];
 
-const SKILL_LEVELS: { value: MatchRequestInputSkillLevel; label: string; desc: string }[] = [
-  { value: 'beginner', label: 'Beginner', desc: '< 3 months' },
-  { value: 'intermediate', label: 'Intermediate', desc: '3–12 months' },
-  { value: 'advanced', label: 'Advanced', desc: '1+ years' },
-  { value: 'any', label: 'Any', desc: "Doesn't matter" },
+// Simplified experience levels — mapped to existing API skill-level values
+const EXPERIENCE_LEVELS: { value: MatchRequestInputSkillLevel; label: string; desc: string }[] = [
+  { value: 'beginner', label: 'Fresher / Student', desc: 'Learning or in college' },
+  { value: 'advanced', label: 'Experienced', desc: 'Working professional' },
 ];
 
-const DURATIONS = [15, 30, 45, 60];
+const LANGUAGES = ['English', 'Hindi', 'Hinglish'];
+
+// Voice is always on — no chat-type selection needed
+const CHAT_TYPE = 'voice' as const;
+// Duration is managed inside the session; pass a safe default to the API
+const DEFAULT_DURATION = 60;
 
 type Stage = 'configure' | 'searching' | 'matched';
 
@@ -79,13 +90,11 @@ export default function FindPartnerScreen() {
   const insets = useSafeAreaInsets();
 
   const [stage, setStage] = useState<Stage>('configure');
-  const [topic, setTopic] = useState(TOPICS[0]);
-  const [skillLevel, setSkillLevel] = useState<MatchRequestInputSkillLevel>('any');
-  const [duration, setDuration] = useState(30);
-  const [chatType, setChatType] = useState<MatchRequestInputChatType>('text');
+  const [track, setTrack] = useState(TRACKS[0]);
+  const [skillLevel, setSkillLevel] = useState<MatchRequestInputSkillLevel>('beginner');
+  const [language, setLanguage] = useState(LANGUAGES[0]);
   const [matchId, setMatchId] = useState<number | null>(null);
 
-  // Demo-mode timer ref — used when AUTH is not configured
   const demoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const createMatch = useCreateMatchRequest();
@@ -99,7 +108,6 @@ export default function FindPartnerScreen() {
     } as any,
   });
 
-  // Live API: transition when server reports a match
   useEffect(() => {
     if (!AUTH_ENABLED) return;
     if (matchStatus?.status === 'matched' && matchStatus.sessionId) {
@@ -111,7 +119,6 @@ export default function FindPartnerScreen() {
     }
   }, [matchStatus]);
 
-  // Auto-start the matched session immediately when the backend reports a session ID.
   useEffect(() => {
     if (!AUTH_ENABLED) return;
     if (matchStatus?.status === 'matched' && matchStatus.sessionId) {
@@ -119,12 +126,10 @@ export default function FindPartnerScreen() {
     }
   }, [AUTH_ENABLED, matchStatus?.status, matchStatus?.sessionId, router]);
 
-  // Cleanup demo timer on unmount
   useEffect(() => () => { if (demoTimerRef.current) clearTimeout(demoTimerRef.current); }, []);
 
   const handleFind = () => {
     if (!AUTH_ENABLED) {
-      // Demo mode: animate through searching → matched without a real API call
       setStage('searching');
       demoTimerRef.current = setTimeout(() => setStage('matched'), 3500);
       return;
@@ -132,7 +137,13 @@ export default function FindPartnerScreen() {
 
     createMatch.mutate(
       {
-        data: { topic, skillLevel, chatType, durationMinutes: duration, anonymous: true },
+        data: {
+          topic: track,
+          skillLevel,
+          chatType: CHAT_TYPE,
+          durationMinutes: DEFAULT_DURATION,
+          anonymous: true,
+        },
       },
       {
         onSuccess: (result) => {
@@ -160,7 +171,7 @@ export default function FindPartnerScreen() {
     if (!AUTH_ENABLED) {
       Alert.alert(
         'Backend Required',
-        'Live chat sessions need the API server and Clerk authentication to be configured. Add your CLERK_PUBLISHABLE_KEY and CLERK_SECRET_KEY secrets to enable this feature.',
+        'Live sessions need the API server and Clerk authentication configured. Add your CLERK_PUBLISHABLE_KEY and CLERK_SECRET_KEY secrets to enable this feature.',
         [{ text: 'OK' }],
       );
       return;
@@ -173,16 +184,16 @@ export default function FindPartnerScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Stack.Screen options={{ title: 'Find Study Partner' }} />
 
-      {/* CONFIGURE STAGE */}
+      {/* ── CONFIGURE STAGE ── */}
       {stage === 'configure' && (
         <ScrollView
-          contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 24 }]}
+          contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 32 }]}
           showsVerticalScrollIndicator={false}
         >
-          {/* Header banner */}
-          <View style={[styles.banner, { backgroundColor: colors.primary + '15', borderColor: colors.primary + '30', borderWidth: 1 }]}>
-            <View style={[styles.bannerIcon, { backgroundColor: colors.primary + '25' }]}>
-              <Feather name="users" size={22} color={colors.primary} />
+          {/* Header */}
+          <View style={[styles.banner, { backgroundColor: colors.primary + '12', borderColor: colors.primary + '28' }]}>
+            <View style={[styles.bannerIcon, { backgroundColor: colors.primary + '22' }]}>
+              <Feather name="users" size={20} color={colors.primary} />
             </View>
             <View style={styles.bannerText}>
               <Text style={[styles.bannerTitle, { color: colors.foreground }]}>Anonymous Matching</Text>
@@ -192,157 +203,123 @@ export default function FindPartnerScreen() {
             </View>
           </View>
 
-          {/* Topic */}
-          <Text style={[styles.label, { color: colors.foreground }]}>Topic</Text>
+          {/* Study Track */}
+          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>Study Track</Text>
           <View style={styles.chipGrid}>
-            {TOPICS.map((t) => (
+            {TRACKS.map((t) => (
               <TouchableOpacity
                 key={t}
-                onPress={() => setTopic(t)}
+                onPress={() => setTrack(t)}
                 activeOpacity={0.7}
                 style={[
                   styles.chip,
                   {
-                    backgroundColor: topic === t ? colors.primary : colors.secondary,
-                    borderColor: topic === t ? colors.primary : colors.border,
+                    backgroundColor: track === t ? colors.primary : 'transparent',
+                    borderColor: track === t ? colors.primary : colors.border,
                   },
                 ]}
               >
-                <Text style={[styles.chipText, { color: topic === t ? '#fff' : colors.mutedForeground }]}>
+                <Text style={[styles.chipText, { color: track === t ? '#fff' : colors.mutedForeground }]}>
                   {t}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
 
-          {/* Skill level */}
-          <Text style={[styles.label, { color: colors.foreground }]}>Your Skill Level</Text>
-          <View style={styles.skillRow}>
-            {SKILL_LEVELS.map((s) => (
-              <TouchableOpacity
-                key={s.value}
-                onPress={() => setSkillLevel(s.value)}
-                activeOpacity={0.8}
-                style={[
-                  styles.skillCard,
-                  {
-                    borderColor: skillLevel === s.value ? colors.primary : colors.border,
-                    backgroundColor: skillLevel === s.value ? colors.primary + '15' : colors.card,
-                  },
-                ]}
-              >
-                <Text
+          {/* Experience */}
+          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>Experience</Text>
+          <View style={styles.twoColRow}>
+            {EXPERIENCE_LEVELS.map((s) => {
+              const selected = skillLevel === s.value;
+              return (
+                <TouchableOpacity
+                  key={s.value}
+                  onPress={() => setSkillLevel(s.value)}
+                  activeOpacity={0.8}
                   style={[
-                    styles.skillLabel,
-                    { color: skillLevel === s.value ? colors.primary : colors.foreground },
+                    styles.optionCard,
+                    {
+                      borderColor: selected ? colors.primary : colors.border,
+                      backgroundColor: selected ? colors.primary + '12' : colors.card,
+                    },
                   ]}
                 >
-                  {s.label}
-                </Text>
-                <Text style={[styles.skillDesc, { color: colors.mutedForeground }]}>{s.desc}</Text>
-              </TouchableOpacity>
-            ))}
+                  <Text style={[styles.optionLabel, { color: selected ? colors.primary : colors.foreground }]}>
+                    {s.label}
+                  </Text>
+                  <Text style={[styles.optionDesc, { color: colors.mutedForeground }]}>{s.desc}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
-          {/* Duration */}
-          <Text style={[styles.label, { color: colors.foreground }]}>Session Duration</Text>
-          <View style={styles.durationRow}>
-            {DURATIONS.map((d) => (
-              <TouchableOpacity
-                key={d}
-                onPress={() => setDuration(d)}
-                activeOpacity={0.8}
-                style={[
-                  styles.durationBtn,
-                  {
-                    borderColor: duration === d ? colors.primary : colors.border,
-                    backgroundColor: duration === d ? colors.primary : colors.secondary,
-                  },
-                ]}
-              >
-                <Text
+          {/* Language */}
+          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>Language</Text>
+          <View style={styles.threeColRow}>
+            {LANGUAGES.map((lang) => {
+              const selected = language === lang;
+              return (
+                <TouchableOpacity
+                  key={lang}
+                  onPress={() => setLanguage(lang)}
+                  activeOpacity={0.8}
                   style={[
-                    styles.durationText,
-                    { color: duration === d ? '#fff' : colors.mutedForeground },
+                    styles.optionCard,
+                    {
+                      borderColor: selected ? colors.primary : colors.border,
+                      backgroundColor: selected ? colors.primary + '12' : colors.card,
+                    },
                   ]}
                 >
-                  {d}m
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Text style={[styles.optionLabel, { color: selected ? colors.primary : colors.foreground }]}>
+                    {lang}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
-          {/* Chat type */}
-          <Text style={[styles.label, { color: colors.foreground }]}>Chat Type</Text>
-          <View style={styles.chatTypeRow}>
-            {(['text', 'voice'] as MatchRequestInputChatType[]).map((ct) => (
-              <TouchableOpacity
-                key={ct}
-                onPress={() => setChatType(ct)}
-                activeOpacity={0.8}
-                style={[
-                  styles.chatTypeCard,
-                  {
-                    borderColor: chatType === ct ? colors.primary : colors.border,
-                    backgroundColor: chatType === ct ? colors.primary + '15' : colors.card,
-                  },
-                ]}
-              >
-                <Feather
-                  name={ct === 'text' ? 'message-square' : 'mic'}
-                  size={22}
-                  color={chatType === ct ? colors.primary : colors.mutedForeground}
-                />
-                <Text
-                  style={[
-                    styles.chatTypeLabel,
-                    { color: chatType === ct ? colors.primary : colors.foreground },
-                  ]}
-                >
-                  {ct === 'text' ? 'Text Chat' : 'Voice Chat'}
-                </Text>
-                {ct === 'voice' && (
-                  <Text style={[styles.voiceBadge, { color: colors.mutedForeground }]}>Beta</Text>
-                )}
-              </TouchableOpacity>
-            ))}
+          {/* Voice indicator */}
+          <View style={[styles.voiceRow, { backgroundColor: colors.primary + '0E', borderColor: colors.primary + '28' }]}>
+            <Feather name="mic" size={15} color={colors.primary} />
+            <Text style={[styles.voiceLabel, { color: colors.primary }]}>Voice Matching Enabled</Text>
           </View>
 
           {/* CTA */}
           <TouchableOpacity
             onPress={handleFind}
             disabled={createMatch.isPending}
-            style={[styles.findBtn, { backgroundColor: colors.primary, opacity: createMatch.isPending ? 0.7 : 1 }]}
+            style={[styles.ctaBtn, { backgroundColor: colors.primary, opacity: createMatch.isPending ? 0.7 : 1 }]}
             activeOpacity={0.85}
           >
             {createMatch.isPending ? (
               <ActivityIndicator color="#fff" />
             ) : (
               <>
-                <Feather name="search" size={18} color="#fff" />
-                <Text style={styles.findBtnText}>Find Partner</Text>
+                <Feather name="search" size={17} color="#fff" />
+                <Text style={styles.ctaBtnText}>Start Matching</Text>
               </>
             )}
           </TouchableOpacity>
         </ScrollView>
       )}
 
-      {/* SEARCHING STAGE */}
+      {/* ── SEARCHING STAGE ── */}
       {stage === 'searching' && (
         <View style={styles.centeredContainer}>
           <View style={styles.pulseContainer}>
             <PulsingRing color={colors.primary} />
             <PulsingRing color={colors.primary} />
             <View style={[styles.pulseCenter, { backgroundColor: colors.primary + '25' }]}>
-              <Feather name="users" size={36} color={colors.primary} />
+              <Feather name="users" size={34} color={colors.primary} />
             </View>
           </View>
           <Text style={[styles.searchingTitle, { color: colors.foreground }]}>Looking for a partner…</Text>
           <View style={[styles.topicPill, { backgroundColor: colors.primary + '15', borderColor: colors.primary + '30' }]}>
-            <Text style={[styles.searchingTopic, { color: colors.primary }]}>{topic}</Text>
+            <Text style={[styles.topicPillText, { color: colors.primary }]}>{track}</Text>
           </View>
           <Text style={[styles.searchingSub, { color: colors.mutedForeground }]}>
-            We'll match you with someone at a similar skill level
+            We'll match you with someone at a similar level
           </Text>
           <TouchableOpacity
             onPress={handleCancel}
@@ -354,7 +331,7 @@ export default function FindPartnerScreen() {
         </View>
       )}
 
-      {/* MATCHED STAGE */}
+      {/* ── MATCHED STAGE ── */}
       {stage === 'matched' && (
         <View style={styles.centeredContainer}>
           <View style={[styles.matchedIcon, { backgroundColor: '#10b98120' }]}>
@@ -362,24 +339,20 @@ export default function FindPartnerScreen() {
           </View>
           <Text style={[styles.matchedTitle, { color: colors.foreground }]}>Partner Found!</Text>
           <Text style={[styles.matchedSub, { color: colors.mutedForeground }]}>
-            You've been anonymously matched for a {duration}-minute session on:
+            You've been anonymously matched for a voice session on:
           </Text>
           <View style={[styles.topicPill, { backgroundColor: colors.primary + '15', borderColor: colors.primary + '30' }]}>
-            <Text style={[styles.matchedTopicText, { color: colors.primary }]}>{topic}</Text>
+            <Text style={[styles.topicPillText, { color: colors.primary }]}>{track}</Text>
           </View>
           <TouchableOpacity
             onPress={handleStartChat}
-            style={[styles.findBtn, { backgroundColor: '#10b981', marginTop: 8 }]}
+            style={[styles.ctaBtn, { backgroundColor: '#10b981', marginTop: 8 }]}
             activeOpacity={0.85}
           >
-            <Feather name={chatType === 'voice' ? 'phone' : 'message-circle'} size={18} color="#fff" />
-            <Text style={styles.findBtnText}>{chatType === 'voice' ? 'Start Call' : 'Start Chat'}</Text>
+            <Feather name="phone" size={17} color="#fff" />
+            <Text style={styles.ctaBtnText}>Start Call</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            onPress={handleCancel}
-            style={styles.textBtn}
-            activeOpacity={0.7}
-          >
+          <TouchableOpacity onPress={handleCancel} style={styles.textBtn} activeOpacity={0.7}>
             <Text style={[styles.textBtnText, { color: colors.mutedForeground }]}>Go Back</Text>
           </TouchableOpacity>
         </View>
@@ -390,72 +363,88 @@ export default function FindPartnerScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scroll: { padding: 20, gap: 4 },
+  scroll: { padding: 20, gap: 0 },
+
+  // Banner
   banner: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
-    borderRadius: 14,
+    borderRadius: 12,
     padding: 14,
-    marginBottom: 8,
+    borderWidth: 1,
+    marginBottom: 24,
   },
   bannerIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
   },
   bannerText: { flex: 1 },
-  bannerTitle: { fontSize: 14, fontWeight: '700', marginBottom: 3 },
+  bannerTitle: { fontSize: 13, fontWeight: '700', marginBottom: 3 },
   bannerSub: { fontSize: 12, lineHeight: 17 },
-  label: { fontSize: 13, fontWeight: '700', marginTop: 20, marginBottom: 10, letterSpacing: 0.3 },
-  chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 100, borderWidth: 1 },
-  chipText: { fontSize: 12, fontWeight: '500' },
-  skillRow: { flexDirection: 'row', gap: 8 },
-  skillCard: {
+
+  // Section label
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    marginBottom: 10,
+    marginTop: 0,
+  },
+
+  // Track chips
+  chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 },
+  chip: { paddingHorizontal: 13, paddingVertical: 7, borderRadius: 100, borderWidth: 1 },
+  chipText: { fontSize: 13, fontWeight: '500' },
+
+  // Two-column row (experience)
+  twoColRow: { flexDirection: 'row', gap: 10, marginBottom: 24 },
+  // Three-column row (language)
+  threeColRow: { flexDirection: 'row', gap: 8, marginBottom: 20 },
+
+  // Generic option card used by experience + language
+  optionCard: {
     flex: 1,
     borderRadius: 10,
     borderWidth: 1.5,
-    padding: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
   },
-  skillLabel: { fontSize: 12, fontWeight: '700' },
-  skillDesc: { fontSize: 10, textAlign: 'center' },
-  durationRow: { flexDirection: 'row', gap: 10 },
-  durationBtn: {
-    flex: 1,
-    height: 44,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  durationText: { fontSize: 14, fontWeight: '700' },
-  chatTypeRow: { flexDirection: 'row', gap: 12 },
-  chatTypeCard: {
-    flex: 1,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    padding: 16,
-    alignItems: 'center',
-    gap: 8,
-  },
-  chatTypeLabel: { fontSize: 13, fontWeight: '700' },
-  voiceBadge: { fontSize: 10, fontStyle: 'italic' },
-  findBtn: {
+  optionLabel: { fontSize: 13, fontWeight: '700', textAlign: 'center' },
+  optionDesc: { fontSize: 11, textAlign: 'center' },
+
+  // Voice indicator
+  voiceRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
+    gap: 7,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingVertical: 10,
+    marginBottom: 0,
+  },
+  voiceLabel: { fontSize: 13, fontWeight: '600' },
+
+  // CTA button
+  ctaBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 9,
     height: 52,
     borderRadius: 14,
-    marginTop: 24,
-    paddingHorizontal: 24,
+    marginTop: 20,
   },
-  findBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  ctaBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+
+  // Centered states (searching / matched)
   centeredContainer: {
     flex: 1,
     alignItems: 'center',
@@ -491,7 +480,7 @@ const styles = StyleSheet.create({
     borderRadius: 100,
     borderWidth: 1,
   },
-  searchingTopic: { fontSize: 14, fontWeight: '700' },
+  topicPillText: { fontSize: 14, fontWeight: '700' },
   searchingSub: { fontSize: 13, textAlign: 'center', lineHeight: 19 },
   outlineBtn: {
     paddingHorizontal: 28,
@@ -511,7 +500,6 @@ const styles = StyleSheet.create({
   },
   matchedTitle: { fontSize: 26, fontWeight: '800' },
   matchedSub: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
-  matchedTopicText: { fontSize: 15, fontWeight: '700' },
   textBtn: { marginTop: 4, padding: 8 },
   textBtnText: { fontSize: 14 },
 });

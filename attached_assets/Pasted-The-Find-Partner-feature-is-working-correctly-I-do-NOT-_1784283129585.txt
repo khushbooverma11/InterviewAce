@@ -1,0 +1,165 @@
+The Find Partner feature is working correctly. I do NOT want to redesign the backend or matching logic. I only want to improve the UX/UI and simplify the matching flow.
+
+GOAL:
+The screen should feel clean, modern, premium, and require the minimum number of selections before a user starts matching.
+
+Requirements:
+
+1. Remove the current topic chips (Arrays, Hashing, Trees, Graphs, etc.).
+
+Replace them with high-level learning tracks only:
+
+- DSA
+- Low Level Design (LLD)
+- High Level Design (HLD)
+- Java
+- JavaScript
+- React
+- SQL
+- Python
+- C++
+- Other
+
+These are the only options shown on the Find Partner screen.
+
+Future DSA subtopics (Arrays, Graphs, DP, etc.) can be selected inside the discussion after users connect. Do not show them on this page.
+
+------------------------------------------------
+
+2. Simplify Skill Level
+
+Replace:
+
+- Beginner
+- Intermediate
+- Advanced
+- Any
+
+with only:
+
+- Fresher / Student
+- Experienced
+
+These are enough for matching.
+
+------------------------------------------------
+
+3. Remove Session Duration completely.
+
+Users should not choose call duration before matching.
+
+The conversation can continue until either user leaves.
+
+Remove all related UI and logic from this page.
+
+------------------------------------------------
+
+4. Communication Mode
+
+Make Voice Chat the default communication mode.
+
+Do not ask the user to choose between Voice and Text before matching.
+
+Remove the Chat Type cards.
+
+Instead show a small label:
+
+🎤 Voice Matching Enabled
+
+The app should automatically create a voice session.
+
+Text messaging can still exist inside the active session after users connect.
+
+------------------------------------------------
+
+5. Add Language Preference
+
+Add a section:
+
+Language
+
+- English
+- Hindi
+- Hinglish
+
+Use this preference during matching.
+
+------------------------------------------------
+
+6. Improve Layout
+
+Make the screen much cleaner.
+
+Suggested order:
+
+--------------------------------
+Find Study Partner
+
+Study Track
+
+Experience
+
+Language
+
+Voice Matching Enabled
+
+[ Find Study Partner ]
+--------------------------------
+
+Avoid too many cards and chips.
+
+Reduce vertical spacing.
+
+Improve alignment and visual hierarchy.
+
+The screen should feel similar to Discord, PeerUp, or modern social apps.
+
+------------------------------------------------
+
+7. Improve CTA
+
+Rename button from
+
+"Find Partner"
+
+to
+
+"Find Study Partner"
+
+or
+
+"Start Matching"
+
+Choose whichever looks better.
+
+------------------------------------------------
+
+8. Keep Existing Backend
+
+Do NOT modify:
+
+- WebRTC
+- Voice calling
+- Queue logic
+- Matching algorithm
+- Authentication
+- Database schema
+- APIs
+
+Only update the UI and pass the simplified filters to the existing matching endpoint.
+
+------------------------------------------------
+
+9. Future Scalability
+
+Design the screen so more filters can easily be added later without redesigning the page.
+
+------------------------------------------------
+
+10. Quality
+
+The UI should look production-ready and App Store quality.
+
+Maintain the existing design system, colors, typography, animations, and spacing used throughout the app.
+
+Do not introduce unnecessary complexity or restructure the project.
