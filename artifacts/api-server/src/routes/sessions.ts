@@ -244,7 +244,7 @@ router.post("/discuss/sessions/:id/rate", async (req, res): Promise<void> => {
   const body = z
     .object({
       rating: z.number().int().min(1).max(5),
-      comment: z.string().trim().max(160).optional(),
+      comment: z.string().trim().max(500).optional(),
     })
     .safeParse(req.body);
 
@@ -260,18 +260,26 @@ router.post("/discuss/sessions/:id/rate", async (req, res): Promise<void> => {
     return;
   }
 
-  const reportedUserId = session.userAId === userId ? session.userBId : session.userAId;
-  const details = body.data.comment
-    ? `rating:${body.data.rating}; comment:${body.data.comment}`
-    : `rating:${body.data.rating}`;
+  // Ensure session is ended before storing feedback
+  if (session.status !== "ended") {
+    await db
+      .update(chatSessionsTable)
+      .set({ status: "ended", endedAt: new Date() })
+      .where(eq(chatSessionsTable.id, params.data.id));
+  }
 
-  await db.insert(sessionReportsTable).values({
-    sessionId: params.data.id,
-    reporterId: userId,
-    reportedUserId,
-    reason: "other",
-    details,
-  });
+  const rateeId = session.userAId === userId ? session.userBId : session.userAId;
+
+  await db
+    .insert(sessionFeedbackTable)
+    .values({
+      sessionId: params.data.id,
+      raterId: userId,
+      rateeId,
+      overallRating: body.data.rating,
+      comments: body.data.comment ?? null,
+    })
+    .onConflictDoNothing();
 
   res.status(201).json({ ok: true, rating: body.data.rating });
 });

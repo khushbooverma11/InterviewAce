@@ -330,8 +330,11 @@ function VoiceCallCore({ sessionId, isCaller, partnerHandle, partnerAvatarColor,
   const handleDisconnect = useCallback(() => {
     setStatus('ended');
     cleanup(true);
+    // End the session in the DB so feedback endpoint can accept submissions
+    // and session status is correctly reflected to both peers.
+    customFetch(`/api/discuss/sessions/${sessionId}/end`, { method: 'POST' }).catch(() => {});
     setFeedbackOpen(true);
-  }, [cleanup]);
+  }, [cleanup, sessionId]);
 
   // Process a single incoming signal
   const processOneSignal = useCallback(async (sig: VoiceSignal) => {
@@ -341,7 +344,9 @@ function VoiceCallCore({ sessionId, isCaller, partnerHandle, partnerAvatarColor,
     if (sig.type === 'hangup') {
       setStatus('ended');
       cleanup(false);
-      onEnd();
+      // End session in DB and show feedback — same flow as local hang-up.
+      customFetch(`/api/discuss/sessions/${sessionId}/end`, { method: 'POST' }).catch(() => {});
+      setFeedbackOpen(true);
       return;
     }
     if (sig.type === 'offer' && !isCaller && !offerSetRef.current) {

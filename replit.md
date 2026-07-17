@@ -16,7 +16,8 @@ A technical interview prep platform: a mobile-first app where candidates practic
 ### Required secrets
 | Secret | Description |
 |---|---|
-| `DATABASE_URL` | Provisioned automatically by Replit (PostgreSQL) |
+| `SUPABASE_POOLER_URL` | Supabase **Transaction Pooler** URL (port 6543, e.g. `postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres`) — **required from Replit**; the direct `db.*.supabase.co` host is not reachable |
+| `SUPABASE_DATABASE_URL` | Supabase direct connection URL (port 5432) — used for `isSupabase` SSL detection; set alongside `SUPABASE_POOLER_URL` |
 | `CLERK_SECRET_KEY` | Clerk backend secret key (from dashboard.clerk.com) |
 | `CLERK_PUBLISHABLE_KEY` | Clerk frontend publishable key — the dev script maps this to `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` automatically |
 | `SESSION_SECRET` | Express session signing secret (already set) |
@@ -26,6 +27,8 @@ A technical interview prep platform: a mobile-first app where candidates practic
 |---|---|
 | `METERED_API_KEY` | Metered.ca API key — enables private dedicated TURN servers for production voice calls |
 | `METERED_APP_NAME` | Your Metered.ca application name (required alongside `METERED_API_KEY`) |
+| `COTURN_HOST` | Self-hosted Coturn TURN server hostname — alternative to Metered for production |
+| `COTURN_SECRET` | Coturn shared secret (required alongside `COTURN_HOST`) |
 
 ## Stack
 
