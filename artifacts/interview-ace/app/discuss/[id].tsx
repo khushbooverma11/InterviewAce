@@ -106,6 +106,7 @@ export default function PostDetailScreen() {
         onSuccess: () => {
           setCommentText('');
           queryClient.invalidateQueries({ queryKey: getGetDiscussPostQueryKey(postId) });
+          queryClient.invalidateQueries({ queryKey: getListDiscussPostsQueryKey() });
         },
       },
     );

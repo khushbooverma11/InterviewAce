@@ -17,12 +17,14 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useQueryClient } from '@tanstack/react-query';
 import { useColors } from '@/hooks/useColors';
 import {
   useListDiscussPosts,
   useToggleDiscussPostUpvote,
   useListChatSessions,
   useBlockSessionPartner,
+  getListDiscussPostsQueryKey,
 } from '@workspace/api-client-react';
 import type { DiscussPost, ChatSession } from '@workspace/api-client-react';
 import { PostCard } from '@/components/discuss/PostCard';
@@ -306,6 +308,7 @@ export default function DiscussScreen() {
     useListDiscussPosts(topicParam ? { topicTag: topicParam } : undefined);
   const { data: sessions, isLoading: sessionsLoading, refetch: refetchSessions } =
     useListChatSessions();
+  const queryClient = useQueryClient();
   const { data: friends = [] } = useFriends();
   const sendFriend = useSendFriendRequest();
   const blockSession = useBlockSessionPartner();
@@ -329,8 +332,13 @@ export default function DiscussScreen() {
   }, [posts, search, filterSort]);
 
   const handleUpvote = useCallback(
-    (post: DiscussPost) => { toggleUpvote.mutate({ id: post.id }); },
-    [toggleUpvote],
+    (post: DiscussPost) => {
+      toggleUpvote.mutate(
+        { id: post.id },
+        { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListDiscussPostsQueryKey() }) },
+      );
+    },
+    [toggleUpvote, queryClient],
   );
 
   const activeSessions = sessions?.filter((s) => s.status === 'active') ?? [];
