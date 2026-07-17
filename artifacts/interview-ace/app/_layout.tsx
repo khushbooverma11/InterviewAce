@@ -124,8 +124,16 @@ export default function RootLayout() {
 
     // ClerkLoaded is intentionally omitted: it blocks render until Clerk
     // initialises. Auth state is guarded per-screen via useAuth() / isLoaded.
+    // On web, @clerk/expo can fail to derive the clerk-js CDN URL from the
+    // publishable key (results in https:///npm/... with empty host). Providing
+    // clerkJSUrl explicitly bypasses the broken URL construction.
+    const clerkJSUrl =
+      Platform.OS === 'web'
+        ? 'https://js.clerk.com/npm/@clerk/clerk-js@6/dist/clerk.browser.js'
+        : undefined;
+
     return (
-      <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache} proxyUrl={proxyUrl}>
+      <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache} proxyUrl={proxyUrl} clerkJSUrl={clerkJSUrl}>
         <AppProviders>
           <ThemedStack />
         </AppProviders>
