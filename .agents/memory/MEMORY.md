@@ -1,3 +1,4 @@
+- [Supabase pooler required on Replit](supabase-pooler-replit.md) — Direct DB host (db.<ref>.supabase.co) unreachable from Replit; use Transaction Pooler URL (SUPABASE_POOLER_URL) instead.
 - [Discuss feature architecture](discuss-feature.md) — Complete Discuss feature built; screens, components, nav done. Clerk auth wired.
 - [Clerk no-key crash](clerk-no-key-crash.md) — Never import @clerk/expo at module top-level; gate with AUTH_ENABLED flag via require() to prevent native module crash on web.
 - [Horizontal ScrollView height](horizontal-scrollview-height.md) — On web, horizontal ScrollView inside flex col must be wrapped in a fixed-height View to avoid chip stretching.

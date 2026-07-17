@@ -8,14 +8,18 @@ const { Pool } = pg;
  * Database connection.
  *
  * Priority:
- *   1. SUPABASE_DATABASE_URL  — Supabase (production target)
- *   2. DATABASE_URL            — Replit built-in PostgreSQL (fallback / local dev)
+ *   1. SUPABASE_POOLER_URL    — Supabase Transaction Pooler (port 6543, works from Replit)
+ *   2. SUPABASE_DATABASE_URL  — Supabase direct connection (fallback)
+ *   3. DATABASE_URL            — Replit built-in PostgreSQL (local dev fallback)
  *
- * To switch to Supabase: set SUPABASE_DATABASE_URL to the connection pooler
- * URI from Supabase → Settings → Database → Connection pooling (port 6543).
- * No code changes are needed.
+ * SUPABASE_POOLER_URL must point to the Transaction Pooler endpoint
+ * (aws-0-<region>.pooler.supabase.com:6543) which is reachable from Replit containers.
+ * The direct connection host (db.<ref>.supabase.co:5432) is not resolvable from Replit.
  */
-const connectionString = process.env.SUPABASE_DATABASE_URL ?? process.env.DATABASE_URL;
+const connectionString =
+  process.env.SUPABASE_POOLER_URL ??
+  process.env.SUPABASE_DATABASE_URL ??
+  process.env.DATABASE_URL;
 
 if (!connectionString) {
   throw new Error(
