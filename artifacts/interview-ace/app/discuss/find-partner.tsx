@@ -40,11 +40,11 @@ const TRACKS = [
 
 // Simplified experience levels — mapped to existing API skill-level values
 const EXPERIENCE_LEVELS: { value: MatchRequestInputSkillLevel; label: string; desc: string }[] = [
-  { value: 'beginner', label: 'Fresher / Student', desc: 'Learning or in college' },
+  { value: 'beginner', label: 'Fresher', desc: 'Learning or in college' },
   { value: 'advanced', label: 'Experienced', desc: 'Working professional' },
 ];
 
-const LANGUAGES = ['English', 'Hindi', 'Hinglish'];
+const GENDERS = ['Male', 'Female', 'Any'];
 
 // Voice is always on — no chat-type selection needed
 const CHAT_TYPE = 'voice' as const;
@@ -92,7 +92,7 @@ export default function FindPartnerScreen() {
   const [stage, setStage] = useState<Stage>('configure');
   const [track, setTrack] = useState(TRACKS[0]);
   const [skillLevel, setSkillLevel] = useState<MatchRequestInputSkillLevel>('beginner');
-  const [language, setLanguage] = useState(LANGUAGES[0]);
+  const [gender, setGender] = useState(GENDERS[2]);
   const [matchId, setMatchId] = useState<number | null>(null);
 
   const demoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -253,15 +253,15 @@ export default function FindPartnerScreen() {
             })}
           </View>
 
-          {/* Language */}
-          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>Language</Text>
+          {/* Gender */}
+          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>Partner Gender</Text>
           <View style={styles.threeColRow}>
-            {LANGUAGES.map((lang) => {
-              const selected = language === lang;
+            {GENDERS.map((g) => {
+              const selected = gender === g;
               return (
                 <TouchableOpacity
-                  key={lang}
-                  onPress={() => setLanguage(lang)}
+                  key={g}
+                  onPress={() => setGender(g)}
                   activeOpacity={0.8}
                   style={[
                     styles.optionCard,
@@ -272,7 +272,7 @@ export default function FindPartnerScreen() {
                   ]}
                 >
                   <Text style={[styles.optionLabel, { color: selected ? colors.primary : colors.foreground }]}>
-                    {lang}
+                    {g}
                   </Text>
                 </TouchableOpacity>
               );
