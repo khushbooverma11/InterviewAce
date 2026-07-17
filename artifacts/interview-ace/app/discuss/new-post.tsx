@@ -7,10 +7,8 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
-  Platform,
   Alert,
 } from 'react-native';
-import { Feather } from '@expo/vector-icons';
 import { useRouter, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
@@ -21,11 +19,6 @@ import {
   getListDiscussPostsQueryKey,
 } from '@workspace/api-client-react';
 
-const CATEGORIES = [
-  'DSA', 'Low Level Design (LLD)', 'High Level Design (HLD)',
-  'Java', 'JavaScript', 'React', 'SQL', 'Python', 'C++', 'Other',
-];
-
 export default function NewPostScreen() {
   const colors = useColors();
   const router = useRouter();
@@ -34,7 +27,6 @@ export default function NewPostScreen() {
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [category, setCategory] = useState('');
   const [demoLoading, setDemoLoading] = useState(false);
 
   const createPost = useCreateDiscussPost();
@@ -56,10 +48,9 @@ export default function NewPostScreen() {
     createPost.mutate(
       {
         data: {
-          type: 'question',
+          type: 'discussion',
           title: title.trim(),
           content: content.trim(),
-          topicTag: category || undefined,
         },
       },
       {
@@ -120,10 +111,10 @@ export default function NewPostScreen() {
           placeholderTextColor={colors.mutedForeground}
           value={title}
           onChangeText={setTitle}
-          maxLength={120}
+          maxLength={100}
           returnKeyType="next"
         />
-        <Text style={[styles.charCount, { color: colors.mutedForeground }]}>{title.length}/120</Text>
+        <Text style={[styles.charCount, { color: colors.mutedForeground }]}>{title.length}/100</Text>
 
         {/* Content */}
         <Text style={[styles.label, { color: colors.foreground }]}>Content</Text>
@@ -132,44 +123,15 @@ export default function NewPostScreen() {
             styles.contentInput,
             { backgroundColor: colors.card, color: colors.foreground, borderColor: colors.border },
           ]}
-          placeholder="Share your thoughts, question, or resource…"
+          placeholder="Share your thoughts…"
           placeholderTextColor={colors.mutedForeground}
           value={content}
           onChangeText={setContent}
           multiline
           textAlignVertical="top"
-          maxLength={2000}
+          maxLength={1000}
         />
-        <Text style={[styles.charCount, { color: colors.mutedForeground }]}>{content.length}/2000</Text>
-
-        {/* Category */}
-        <Text style={[styles.label, { color: colors.foreground }]}>
-          Category{' '}
-          <Text style={[styles.optional, { color: colors.mutedForeground }]}>(optional)</Text>
-        </Text>
-        <View style={styles.chipGrid}>
-          {CATEGORIES.map((cat) => {
-            const selected = category === cat;
-            return (
-              <TouchableOpacity
-                key={cat}
-                onPress={() => setCategory(selected ? '' : cat)}
-                activeOpacity={0.7}
-                style={[
-                  styles.chip,
-                  {
-                    backgroundColor: selected ? colors.primary : 'transparent',
-                    borderColor: selected ? colors.primary : colors.border,
-                  },
-                ]}
-              >
-                <Text style={[styles.chipText, { color: selected ? '#fff' : colors.mutedForeground }]}>
-                  {cat}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        <Text style={[styles.charCount, { color: colors.mutedForeground }]}>{content.length}/1000</Text>
       </ScrollView>
     </View>
   );
@@ -182,7 +144,6 @@ const styles = StyleSheet.create({
     fontSize: 13, fontWeight: '700',
     marginTop: 20, marginBottom: 8, letterSpacing: 0.3,
   },
-  optional: { fontWeight: '400' },
   titleInput: {
     borderRadius: 10, borderWidth: 1,
     paddingHorizontal: 14, paddingVertical: 12, fontSize: 15,
@@ -193,9 +154,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 12,
     fontSize: 15, minHeight: 160, lineHeight: 22,
   },
-  chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { paddingHorizontal: 13, paddingVertical: 7, borderRadius: 100, borderWidth: 1 },
-  chipText: { fontSize: 13, fontWeight: '500' },
   headerBtn: { paddingHorizontal: 4, paddingVertical: 4 },
   cancelText: { fontSize: 16, fontWeight: '400' },
   submitText: { fontSize: 16, fontWeight: '700' },

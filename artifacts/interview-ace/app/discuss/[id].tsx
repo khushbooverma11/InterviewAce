@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,7 @@ import {
   useDeleteDiscussPost,
   getGetDiscussPostQueryKey,
   getListDiscussPostsQueryKey,
+  customFetch,
 } from '@workspace/api-client-react';
 import type { PostComment } from '@workspace/api-client-react';
 import { AvatarBadge } from '@/components/discuss/AvatarBadge';
@@ -44,7 +45,7 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(h / 24)}d ago`;
 }
 
-function CommentRow({ comment }: { comment: PostComment }) {
+function CommentRow({ comment, onDelete }: { comment: PostComment; onDelete?: () => void }) {
   const colors = useColors();
   return (
     <View style={styles.commentRow}>
@@ -57,6 +58,11 @@ function CommentRow({ comment }: { comment: PostComment }) {
           <Text style={[styles.commentTime, { color: colors.mutedForeground }]}>
             {timeAgo(comment.createdAt)}
           </Text>
+          {comment.isMine && onDelete && (
+            <TouchableOpacity onPress={onDelete} style={styles.deleteCommentBtn} activeOpacity={0.7}>
+              <Feather name="trash-2" size={13} color={colors.mutedForeground} />
+            </TouchableOpacity>
+          )}
         </View>
         <Text style={[styles.commentText, { color: colors.foreground }]}>{comment.content}</Text>
       </View>
@@ -124,6 +130,24 @@ export default function PostDetailScreen() {
       },
     ]);
   };
+
+  const handleDeleteComment = useCallback((commentId: number) => {
+    Alert.alert('Delete Comment', 'Delete this comment?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await customFetch(`/api/discuss/posts/${postId}/comments/${commentId}`, { method: 'DELETE' });
+            queryClient.invalidateQueries({ queryKey: getGetDiscussPostQueryKey(postId) });
+          } catch {
+            Alert.alert('Error', 'Could not delete comment. Please try again.');
+          }
+        },
+      },
+    ]);
+  }, [postId, queryClient]);
 
   if (isLoading) {
     return (
@@ -247,7 +271,7 @@ export default function PostDetailScreen() {
               index < comments.length - 1 && { borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth },
             ]}
           >
-            <CommentRow comment={item} />
+            <CommentRow comment={item} onDelete={() => handleDeleteComment(item.id)} />
           </View>
         )}
       />
@@ -337,6 +361,7 @@ const styles = StyleSheet.create({
   commentHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
   commentHandle: { fontSize: 13, fontWeight: '600' },
   commentTime: { fontSize: 11 },
+  deleteCommentBtn: { marginLeft: 'auto', padding: 4 },
   commentText: { fontSize: 14, lineHeight: 20 },
   emptyComments: { paddingVertical: 32, alignItems: 'center' },
   emptyCommentsText: { fontSize: 13 },

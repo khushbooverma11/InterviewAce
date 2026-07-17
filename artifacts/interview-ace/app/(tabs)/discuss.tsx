@@ -359,17 +359,29 @@ export default function DiscussScreen() {
       {/* ── Header ── */}
       <View style={[styles.header, { paddingTop: insets.top + 12, borderBottomColor: colors.border }]}>
         <Text style={[styles.headerTitle, { color: colors.foreground }]}>Discuss</Text>
-        <TouchableOpacity
-          onPress={() => router.push('/notifications' as never)}
-          style={styles.bellBtn}
-        >
-          <Feather name="bell" size={20} color={colors.foreground} />
-          {unreadCount > 0 && (
-            <View style={[styles.badge, { backgroundColor: colors.primary }]}>
-              <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
-            </View>
+        <View style={styles.headerRight}>
+          {activeTab === 'feed' && (
+            <TouchableOpacity
+              onPress={() => router.push('/discuss/new-post')}
+              activeOpacity={0.85}
+              style={[styles.newPostBtn, { backgroundColor: colors.primary }]}
+            >
+              <Feather name="plus" size={14} color="#fff" />
+              <Text style={styles.newPostBtnText}>New Post</Text>
+            </TouchableOpacity>
           )}
-        </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => router.push('/notifications' as never)}
+            style={styles.bellBtn}
+          >
+            <Feather name="bell" size={20} color={colors.foreground} />
+            {unreadCount > 0 && (
+              <View style={[styles.badge, { backgroundColor: colors.primary }]}>
+                <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* ── Segmented tabs ── */}
@@ -588,6 +600,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   headerTitle: { fontSize: 26, fontWeight: '800' },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  newPostBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20,
+  },
+  newPostBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
   bellBtn: { position: 'relative', padding: 4 },
   badge: {
     position: 'absolute', top: 0, right: 0,

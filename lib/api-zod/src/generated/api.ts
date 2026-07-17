@@ -305,7 +305,8 @@ export const GetDiscussPostResponse = zod.object({
   "authorHandle": zod.string(),
   "avatarColor": zod.string(),
   "content": zod.string(),
-  "createdAt": zod.coerce.date()
+  "createdAt": zod.coerce.date(),
+  "isMine": zod.boolean()
 }))
 })
 

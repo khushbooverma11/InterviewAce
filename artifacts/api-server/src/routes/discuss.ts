@@ -143,10 +143,11 @@ router.get("/discuss/posts/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const comments = await db
+  const commentRows = await db
     .select({
       id: postCommentsTable.id,
       postId: postCommentsTable.postId,
+      authorId: postCommentsTable.authorId,
       authorHandle: usersTable.anonymousHandle,
       avatarColor: usersTable.avatarColor,
       content: postCommentsTable.content,
@@ -157,7 +158,40 @@ router.get("/discuss/posts/:id", async (req, res): Promise<void> => {
     .where(eq(postCommentsTable.postId, params.data.id))
     .orderBy(postCommentsTable.createdAt);
 
+  const comments = commentRows.map((c) => ({ ...c, isMine: c.authorId === userId }));
+
   res.json(GetDiscussPostResponse.parse({ post, comments }));
+});
+
+router.delete("/discuss/posts/:id/comments/:commentId", async (req, res): Promise<void> => {
+  const postId = Number(req.params.id);
+  const commentId = Number(req.params.commentId);
+  if (isNaN(postId) || isNaN(commentId)) {
+    res.status(400).json({ error: "Invalid id" });
+    return;
+  }
+  const userId = req.appUser!.id;
+
+  const [deleted] = await db
+    .delete(postCommentsTable)
+    .where(and(eq(postCommentsTable.id, commentId), eq(postCommentsTable.authorId, userId)))
+    .returning();
+
+  if (!deleted) {
+    res.status(404).json({ error: "Comment not found or not yours" });
+    return;
+  }
+
+  // Decrement comment count
+  const [post] = await db.select().from(discussPostsTable).where(eq(discussPostsTable.id, postId));
+  if (post) {
+    await db
+      .update(discussPostsTable)
+      .set({ commentCount: Math.max(0, post.commentCount - 1) })
+      .where(eq(discussPostsTable.id, postId));
+  }
+
+  res.sendStatus(204);
 });
 
 router.delete("/discuss/posts/:id", async (req, res): Promise<void> => {
