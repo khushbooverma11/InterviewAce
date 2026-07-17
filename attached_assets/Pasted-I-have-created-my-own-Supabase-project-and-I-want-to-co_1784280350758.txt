@@ -1,0 +1,84 @@
+I have created my own Supabase project, and I want to completely migrate my application from the Replit database to MY Supabase project.
+
+IMPORTANT REQUIREMENTS
+
+1. Do NOT redesign or recreate the database from scratch.
+2. First inspect the existing database schema currently used by the application.
+3. Preserve all existing tables, columns, relationships, constraints, indexes, enums, and data.
+4. Generate a proper migration instead of manually rewriting everything.
+5. Do not break any existing functionality.
+
+SUPABASE
+
+I will provide the following environment variables:
+
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+DATABASE_URL=
+
+Use MY Supabase project instead of any Replit-managed database.
+
+MIGRATION STEPS
+
+Phase 1
+- Analyze the current database.
+- List every table.
+- List every column.
+- List primary keys.
+- List foreign keys.
+- List indexes.
+- List enums.
+- List constraints.
+- Show me a migration plan before making changes.
+
+Phase 2
+- Generate SQL migration files compatible with PostgreSQL/Supabase.
+- Create all tables in Supabase.
+- Preserve UUIDs where applicable.
+- Preserve timestamps.
+- Preserve relationships.
+
+Phase 3
+- Migrate existing data.
+- Verify row counts.
+- Verify foreign-key integrity.
+- Verify indexes.
+
+Phase 4
+- Replace the application's database connection so every API uses Supabase instead of the Replit database.
+- Remove all Replit database dependencies.
+- Keep Drizzle ORM if already used.
+- Update configuration only where necessary.
+- Do not change the API contract.
+
+Phase 5
+- Test every feature:
+  - Authentication
+  - User profiles
+  - Find Partner
+  - Friends
+  - Messaging
+  - Voice call signaling
+  - Notes
+  - Learn
+  - Practice
+  - Posts
+  - Notifications
+
+Phase 6
+- Remove unused Replit database code after migration is confirmed.
+- Do not delete anything until migration succeeds.
+
+DELIVERABLES
+
+1. SQL migration files.
+2. Updated Drizzle configuration.
+3. Updated environment variables.
+4. Migration report.
+5. Verification report.
+6. Rollback instructions if migration fails.
+
+Do not make unnecessary architecture changes.
+Keep the project structure intact.
+Only migrate the database from Replit to my own Supabase project.
