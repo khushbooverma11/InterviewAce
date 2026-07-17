@@ -7,3 +7,4 @@
 - [WebRTC native support](webrtc-native.md) — react-native-webrtc installed; VoiceCallView loads it via require() with isSupported guard; requires custom Expo build (not Expo Go) for native voice.
 - [Find Partner feature complete](find-partner-feature.md) — All gaps closed: PersonalWSProvider rendered in layout, IncomingCallModal wired, FeedbackModal after session end, typing indicator in DMs, block from friends/history, friendshipId in incoming_call WS message.
 - [Clerk CDN fix for Replit](clerk-cdn-fix.md) — Remove clerkJSUrl from ClerkProvider; use Replit-managed Clerk so Metro bundles clerk-js instead of fetching from unreachable CDN.
+- [External Clerk in dev](clerk-external-dev.md) — User uses external Clerk; dev proxy disabled; preview spinner is expected; auth only works post-deployment.
