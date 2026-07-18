@@ -1522,9 +1522,1324 @@ class Elevator {
   ],
 };
 
+// ─── HLD Track ────────────────────────────────────────────────────────────────
+
+const hldTrack: Track = {
+  id: 'hld',
+  title: 'High Level Design',
+  shortTitle: 'HLD',
+  description: 'Design scalable, reliable, and fault-tolerant distributed systems. The concepts behind every FAANG system design round.',
+  color: '#F59E0B',
+  accentColor: '#D97706',
+  icon: 'server',
+  chapters: [
+    // ── Chapter 1: Fundamentals ───────────────────────────────────────────────
+    {
+      id: 'hld-fundamentals',
+      title: 'System Design Fundamentals',
+      lessons: [
+        // ── Lesson 1: Scalability ─────────────────────────────────────────────
+        {
+          id: 'hld-scalability',
+          title: 'Scalability & Performance',
+          description: 'Vertical vs. horizontal scaling, throughput, latency, and capacity planning.',
+          difficulty: 'Beginner',
+          estimatedMinutes: 18,
+          steps: [
+            {
+              id: 'introduction',
+              title: 'Introduction',
+              content:
+                '**Scalability** is a system\'s ability to handle growing amounts of work by adding resources.\n\nTwo dimensions matter:\n• **Throughput**: how many requests per second the system can handle.\n• **Latency**: how long a single request takes from start to finish.\n\nA scalable system maintains acceptable latency even as throughput demands grow. These two goals often conflict — designing around their tradeoffs is the core challenge of HLD.',
+            },
+            {
+              id: 'problem',
+              title: 'The Problem It Solves',
+              content:
+                'A single server handling all traffic is a **single point of failure** and a **performance ceiling**. As users grow from 1,000 to 10 million:\n\n• CPU saturates → requests queue up → latency spikes.\n• RAM fills → the OS starts swapping → throughput collapses.\n• Disk I/O becomes the bottleneck for database-heavy workloads.\n• The server goes down for maintenance → the entire product goes down.\n\nScalability design answers: **how do we grow capacity without rebuilding the system?**',
+            },
+            {
+              id: 'analogy',
+              title: 'Real Life Analogy',
+              content:
+                'Imagine a restaurant that gets overwhelmed on weekends.\n\n**Vertical scaling** = hiring a superchef who works faster. There\'s a limit to how fast one person can cook.\n\n**Horizontal scaling** = opening more kitchens in parallel, each chef handling a subset of orders. A coordinator (load balancer) assigns incoming orders to whichever kitchen is free.\n\nThe horizontal approach can grow indefinitely — you just keep opening kitchens.',
+            },
+            {
+              id: 'how-it-works',
+              title: 'How It Works',
+              content:
+                '**Vertical Scaling (Scale Up)**\nAdd more CPU, RAM, or faster disk to an existing machine. Simple — no code changes needed. But it has a hard ceiling (the largest machine available) and creates a single point of failure.\n\n**Horizontal Scaling (Scale Out)**\nAdd more machines and distribute load across them using a **load balancer**. Each machine (instance) handles a subset of traffic.\n\nKey concepts that enable horizontal scaling:\n• **Statelessness**: instances don\'t store session data locally — sessions live in a shared cache (Redis).\n• **Shared storage**: databases and file stores live outside the app servers.\n• **Service discovery**: instances register themselves so the load balancer finds them.\n• **Auto-scaling**: cloud platforms automatically add/remove instances based on CPU or request rate metrics.',
+            },
+            {
+              id: 'implementation',
+              title: 'Implementation',
+              content: 'Auto-scaling group configuration (AWS-style pseudocode in Java):',
+              codeExample:
+`// Stateless API server — all state lives in Redis, not in-memory
+@RestController
+public class UserController {
+
+    private final RedisTemplate<String, User> cache;
+    private final UserRepository repo;
+
+    // Session stored in Redis, NOT in server memory
+    @GetMapping("/users/{id}")
+    public User getUser(@PathVariable String id,
+                        HttpSession session) {
+        // Works identically on any instance — no local state
+        return cache.opsForValue().getIfPresent(id,
+            () -> repo.findById(id).orElseThrow());
+    }
+}
+
+// Capacity planning formula
+//
+//   Required instances = ceil(peak_rps / rps_per_instance)
+//   Safety buffer:      add 30–50% headroom above peak
+//   Example:
+//     Peak = 10,000 rps
+//     Each instance handles 500 rps
+//     Base instances = ceil(10,000 / 500) = 20
+//     With 40% buffer = ceil(20 * 1.4) = 28 instances`,
+              codeLanguage: 'java',
+            },
+            {
+              id: 'advantages',
+              title: 'Advantages',
+              content:
+                '• **Fault tolerance**: losing one instance does not take down the system.\n• **Elastic cost**: scale in during off-peak hours to reduce cloud spend.\n• **Zero-downtime deployments**: roll out new versions one instance at a time (rolling deploy).\n• **Geographic distribution**: place instances in multiple regions to reduce latency for global users.\n• **No ceiling**: add instances indefinitely (bounded only by budget and coordination overhead).',
+            },
+            {
+              id: 'disadvantages',
+              title: 'Disadvantages',
+              content:
+                '• **Statefulness is hard**: sessions, in-memory caches, and WebSocket connections must be externalized.\n• **Data consistency**: multiple instances reading/writing the same database create race conditions and stale cache issues.\n• **Operational complexity**: you now manage fleets of servers, load balancers, and health checks.\n• **Network latency**: inter-service calls add overhead that doesn\'t exist in a single-process architecture.\n• **Vertical scaling is still needed for databases**: horizontal scaling of databases (sharding) is significantly harder than for stateless app servers.',
+            },
+            {
+              id: 'interview-questions',
+              title: 'Interview Questions',
+              content:
+                '1. When would you choose vertical scaling over horizontal scaling?\n2. What makes an application "stateless," and why does it matter for horizontal scaling?\n3. How does auto-scaling decide when to add or remove instances?\n4. What is the difference between latency and throughput? Can you improve one without impacting the other?\n5. Design a system that can scale from 1,000 to 10 million users. What changes at each order of magnitude?\n6. What is the "thundering herd" problem and how do you prevent it during a scale-out event?\n7. Explain the N+1 server rule. Why do you always run more instances than you need at peak?',
+            },
+            {
+              id: 'common-mistakes',
+              title: 'Common Mistakes',
+              content:
+                '• **Premature over-engineering**: designing for 100M users when you have 100. Start simple; scale when the bottleneck actually appears.\n• **Ignoring the database**: scaling app servers while leaving a single database is like widening a highway but keeping a one-lane bridge at the end.\n• **Storing state in memory**: sessions, rate limit counters, and caches stored in app-server RAM break when a second instance is added.\n• **Not measuring before optimizing**: add monitoring (CPU, memory, request rate, p99 latency) before deciding where to scale.\n• **Confusing horizontal scaling with microservices**: you can horizontally scale a monolith. Microservices are a separate architectural concern.',
+            },
+            {
+              id: 'best-practices',
+              title: 'Best Practices',
+              content:
+                '• **Design for statelessness from day one** — it\'s cheap to add and expensive to remove later.\n• **Use the 80/20 rule for capacity**: target 80% utilization at peak; the remaining 20% absorbs traffic spikes.\n• **Monitor p99 latency, not just average** — averages hide tail latencies that affect a meaningful fraction of users.\n• **Load test before launch** — use tools like k6, Gatling, or Locust to find the breaking point before users do.\n• **Set auto-scaling cooldown periods** — prevent rapid scale-in right after a spike that could recur within seconds.\n• **Use read replicas** to offload read-heavy workloads from the primary database.',
+            },
+            {
+              id: 'summary',
+              title: 'Summary',
+              content:
+                '**Scalability** is achieved through vertical scaling (bigger machines, simpler but capped) and horizontal scaling (more machines, complex but unlimited).\n\nHorizontal scaling requires **stateless services**, **shared storage**, and a **load balancer**.\n\nDesign for the bottleneck that exists today, not the one you imagine for the future. Measure first, scale second.\n\nKey numbers to remember:\n• A single commodity server handles ~1,000–5,000 req/s for typical CRUD APIs.\n• Adding a CDN can reduce origin traffic by 80–95% for static content.\n• A well-tuned PostgreSQL instance handles ~10,000 reads/s; writes are ~10x harder to scale.',
+            },
+          ],
+        },
+
+        // ── Lesson 2: Load Balancing ──────────────────────────────────────────
+        {
+          id: 'hld-load-balancing',
+          title: 'Load Balancing',
+          description: 'Distributing traffic across servers to maximize availability and throughput.',
+          difficulty: 'Beginner',
+          estimatedMinutes: 15,
+          steps: [
+            {
+              id: 'introduction',
+              title: 'Introduction',
+              content:
+                'A **Load Balancer (LB)** sits in front of a pool of servers and distributes incoming requests across them. It acts as the traffic cop of distributed systems.\n\nTwo layers:\n• **L4 Load Balancer** (Transport layer): routes based on IP address and TCP port. Fast, but cannot inspect HTTP content.\n• **L7 Load Balancer** (Application layer): routes based on HTTP headers, URL paths, cookies, and body content. Slower but enables advanced routing (e.g., route `/api/*` to API servers, `/static/*` to CDN).\n\nExamples: AWS ALB (L7), AWS NLB (L4), Nginx, HAProxy, Envoy.',
+            },
+            {
+              id: 'problem',
+              title: 'The Problem It Solves',
+              content:
+                'Without a load balancer:\n• All traffic hits one server — it becomes a performance bottleneck and a single point of failure.\n• Deploying a new version requires downtime.\n• You cannot scale out: you have nowhere to "spread" the additional instances.\n• A crashed server means all users experience an outage.\n\nWith a load balancer:\n• Traffic is spread evenly across healthy instances.\n• Unhealthy instances are automatically removed from the pool (health checks).\n• Rolling deployments become possible — drain traffic from one instance, update it, bring it back.',
+            },
+            {
+              id: 'analogy',
+              title: 'Real Life Analogy',
+              content:
+                'A supermarket with 10 checkout lanes. The greeter at the entrance (load balancer) directs you to the shortest queue.\n\n• **Round Robin**: directs customers 1-2-3-4...-10-1-2-... in strict rotation.\n• **Least Connections**: always directs the next customer to whichever lane has the fewest people.\n• **IP Hash**: the same customer always goes to the same lane (sticky sessions).\n\nIf a cashier calls in sick (server failure), the greeter stops directing customers to that lane immediately.',
+            },
+            {
+              id: 'how-it-works',
+              title: 'How It Works',
+              content:
+                '**Common Algorithms**\n\n• **Round Robin**: request 1 → server A, request 2 → server B, request 3 → server C, repeat. Simple and stateless. Best when servers have equal capacity.\n• **Weighted Round Robin**: server A gets 60% of traffic, server B gets 40%. Use when servers have different hardware specs.\n• **Least Connections**: route to the server with the fewest active connections. Best for long-lived connections (uploads, WebSockets).\n• **IP Hash**: hash the client IP to always route the same client to the same server. Enables "sticky sessions" without shared session storage.\n• **Random**: pick a random server. Statistically approaches Round Robin at scale.\n\n**Health Checks**\nThe LB periodically pings each server (e.g., `GET /health` every 5 seconds). If a server fails 3 consecutive checks, it\'s removed from the pool. Once healthy again, it\'s re-added.',
+            },
+            {
+              id: 'implementation',
+              title: 'Implementation',
+              content: 'Nginx L7 load balancer configuration + Spring Boot health endpoint:',
+              codeExample:
+`# nginx.conf — L7 load balancer with upstream pool
+upstream api_servers {
+    least_conn;                    # Least-connections algorithm
+    server 10.0.1.1:8080 weight=3; # Gets 3x traffic (faster machine)
+    server 10.0.1.2:8080 weight=1;
+    server 10.0.1.3:8080 weight=1;
+    keepalive 32;                  # Reuse connections for performance
+}
+
+server {
+    listen 80;
+
+    location /api/ {
+        proxy_pass http://api_servers;
+        proxy_next_upstream error timeout http_500; # Retry on failure
+        health_check interval=5s fails=3 passes=2;  # Health check config
+    }
+
+    location /static/ {
+        proxy_pass http://cdn_servers;              # Route static to CDN
+    }
+}
+
+# ──────────────────────────────────────────────────
+# Spring Boot — health check endpoint (auto-provided by Actuator)
+
+@SpringBootApplication
+public class ApiServer {
+    public static void main(String[] args) {
+        SpringApplication.run(ApiServer.class, args);
+    }
+}
+
+# application.yml
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never  # Return 200 OK only — no internals exposed`,
+              codeLanguage: 'java',
+            },
+            {
+              id: 'advantages',
+              title: 'Advantages',
+              content:
+                '• **High availability**: traffic is automatically routed away from failed instances.\n• **Horizontal scaling**: add servers to the pool without any downtime.\n• **SSL termination**: the LB handles TLS decryption, reducing CPU load on app servers.\n• **Centralized rate limiting and authentication**: inspect and enforce at one place.\n• **Zero-downtime deployments**: drain connections from one instance at a time during updates.',
+            },
+            {
+              id: 'disadvantages',
+              title: 'Disadvantages',
+              content:
+                '• **Single point of failure** if the load balancer itself is not redundant (use active-passive or active-active LB pairs).\n• **Sticky sessions** (IP hash) defeat the purpose of horizontal scaling — a crashed server loses all sessions for those IPs.\n• **Additional latency**: every request has an extra network hop.\n• **L7 LB is CPU-intensive**: inspecting HTTP content consumes significant resources under high traffic.\n• **Cost**: managed load balancers (AWS ALB) add per-request cost.',
+            },
+            {
+              id: 'interview-questions',
+              title: 'Interview Questions',
+              content:
+                '1. What is the difference between L4 and L7 load balancing? When would you use each?\n2. How do health checks work, and what happens when a server fails a health check?\n3. What is sticky session routing, and what problem does it solve? What does it break?\n4. How does the load balancer itself avoid being a single point of failure?\n5. Design a blue-green deployment using a load balancer.\n6. What is the difference between a load balancer and a reverse proxy?\n7. How would you route WebSocket connections through a load balancer?',
+            },
+            {
+              id: 'common-mistakes',
+              title: 'Common Mistakes',
+              content:
+                '• **Not making the LB itself redundant**: an HA pair of load balancers (active-passive) with failover is required in production.\n• **Using Round Robin for long requests**: a 30-second file upload holding a connection on one server while other connections are sent there makes that server overloaded.\n• **Relying on IP-based sticky sessions**: NAT and mobile networks change client IPs frequently, breaking the routing guarantee.\n• **Too-long health check intervals**: if health checks run every 60 seconds, a failed server handles traffic for up to 60 seconds before being removed.',
+            },
+            {
+              id: 'best-practices',
+              title: 'Best Practices',
+              content:
+                '• Use **Least Connections** as your default algorithm — it handles heterogeneous request durations better than Round Robin.\n• Set health check interval to **5–10 seconds** with a threshold of **2–3 failures** before marking unhealthy.\n• Enable **connection draining** (deregistration delay): when removing a server, give existing connections 30–60 seconds to complete before forcing them closed.\n• **Separate LBs by traffic type**: put WebSocket connections on a separate LB from HTTP API traffic to avoid tuning conflicts.\n• Use **weighted routing** during canary deployments: route 5% of traffic to the new version, validate, then gradually increase to 100%.',
+            },
+            {
+              id: 'summary',
+              title: 'Summary',
+              content:
+                'A **Load Balancer** distributes incoming requests across a pool of servers using algorithms like Round Robin, Least Connections, or IP Hash.\n\nL4 (network layer) balancers are fast and simple. L7 (application layer) balancers are powerful and enable content-based routing.\n\nHealth checks automatically remove failed servers; connection draining ensures graceful shutdowns. The LB itself must be made redundant to avoid becoming the single point of failure it was designed to eliminate.',
+            },
+          ],
+        },
+
+        // ── Lesson 3: Caching ─────────────────────────────────────────────────
+        {
+          id: 'hld-caching',
+          title: 'Caching Strategies',
+          description: 'Cache-aside, write-through, TTL, eviction policies, and Redis patterns.',
+          difficulty: 'Intermediate',
+          estimatedMinutes: 20,
+          steps: [
+            {
+              id: 'introduction',
+              title: 'Introduction',
+              content:
+                '**Caching** stores the result of an expensive computation or data fetch in fast memory so future requests can be served without repeating the work.\n\nCache hierarchy (fastest to slowest):\n1. **CPU L1/L2/L3 cache** — nanoseconds\n2. **Application in-memory cache** — microseconds\n3. **Distributed cache (Redis, Memcached)** — <1ms\n4. **Database** — 1–10ms (in-memory), 10–100ms (disk)\n5. **Remote API / disk** — 50ms–seconds\n\nIn system design, caching usually refers to a **distributed cache** like Redis sitting between the application servers and the database.',
+            },
+            {
+              id: 'problem',
+              title: 'The Problem It Solves',
+              content:
+                'Databases are the most common bottleneck in web systems. Consider a social media feed:\n• 1 million users view their feed every hour.\n• Each feed query joins 5 tables and takes 50ms.\n• That\'s **1M × 50ms = 50,000 seconds of DB compute per hour**.\n\nWith caching:\n• The first user who requests a feed causes the 50ms DB query.\n• The result is stored in Redis for 60 seconds.\n• The next 999 users in that minute get the result from Redis in <1ms.\n• Database load drops by 99%+.',
+            },
+            {
+              id: 'analogy',
+              title: 'Real Life Analogy',
+              content:
+                'A reference librarian keeps a stack of frequently-requested books on their desk rather than walking to the stacks every time.\n\n• **Cache hit**: the librarian finds the book on their desk — fast.\n• **Cache miss**: the book isn\'t on the desk — they walk to the stacks, get it, and add it to the desk for next time.\n• **Eviction**: when the desk is full, they return the least recently used book to the stacks to make room.\n• **TTL (Time to Live)**: books stay on the desk for at most one day; after that, they assume the information may be outdated and fetch a fresh copy.',
+            },
+            {
+              id: 'how-it-works',
+              title: 'How It Works',
+              content:
+                '**Cache-Aside (Lazy Loading)**\nApp checks cache → cache miss → app fetches from DB → app writes result to cache → return.\nPros: only requested data is cached. Cons: first request after a miss is slow (cold start).\n\n**Write-Through**\nOn every write, the app updates the DB AND the cache in one operation.\nPros: cache is always fresh. Cons: writes are slower; cache fills with data that may never be read.\n\n**Write-Behind (Write-Back)**\nApp writes to cache only; the cache asynchronously flushes to the DB.\nPros: extremely fast writes. Cons: risk of data loss if the cache crashes before flush.\n\n**Eviction Policies**\n• **LRU (Least Recently Used)**: evict the item not accessed for the longest time.\n• **LFU (Least Frequently Used)**: evict the item accessed the fewest times.\n• **TTL-based**: all items expire after a fixed time regardless of access.\n\n**Cache Stampede / Thundering Herd**\nWhen a popular key expires, hundreds of requests simultaneously miss the cache and hammer the DB. Solutions: lock + single-flight (only one request fetches; others wait), or probabilistic early expiration.',
+            },
+            {
+              id: 'implementation',
+              title: 'Implementation',
+              content: 'Cache-aside with Redis + Spring Boot, including stampede protection:',
+              codeExample:
+`@Service
+public class UserService {
+
+    private final StringRedisTemplate redis;
+    private final UserRepository db;
+    private final ObjectMapper mapper;
+
+    private static final Duration TTL = Duration.ofMinutes(5);
+    private static final String KEY_PREFIX = "user:";
+
+    // ── Cache-Aside Pattern ───────────────────────────────────────────────────
+    public User getUser(String userId) throws Exception {
+        String key = KEY_PREFIX + userId;
+
+        // 1. Check cache first
+        String cached = redis.opsForValue().get(key);
+        if (cached != null) {
+            return mapper.readValue(cached, User.class); // cache hit
+        }
+
+        // 2. Cache miss — fetch from DB
+        User user = db.findById(userId)
+                      .orElseThrow(UserNotFoundException::new);
+
+        // 3. Populate cache (TTL prevents stale data forever)
+        redis.opsForValue().set(key, mapper.writeValueAsString(user), TTL);
+        return user;
+    }
+
+    // ── Write-Through: update DB + invalidate cache atomically ────────────────
+    public User updateUser(String userId, UpdateUserRequest req) throws Exception {
+        User updated = db.save(buildUpdate(userId, req)); // write to DB first
+
+        // Invalidate (not update) cache — avoid writing stale data
+        redis.delete(KEY_PREFIX + userId);
+        return updated;
+    }
+
+    // ── Stampede protection: Redis SET NX (only one thread populates cache) ───
+    public User getUserSafe(String userId) throws Exception {
+        String key = KEY_PREFIX + userId;
+        String lockKey = "lock:" + key;
+
+        String cached = redis.opsForValue().get(key);
+        if (cached != null) return mapper.readValue(cached, User.class);
+
+        // Acquire lock — only one request fetches from DB
+        Boolean acquired = redis.opsForValue()
+            .setIfAbsent(lockKey, "1", Duration.ofSeconds(10));
+
+        if (Boolean.TRUE.equals(acquired)) {
+            try {
+                User user = db.findById(userId).orElseThrow();
+                redis.opsForValue().set(key, mapper.writeValueAsString(user), TTL);
+                return user;
+            } finally {
+                redis.delete(lockKey);
+            }
+        }
+
+        // Another thread is fetching — wait and retry
+        Thread.sleep(50);
+        return getUser(userId);
+    }
+}`,
+              codeLanguage: 'java',
+            },
+            {
+              id: 'advantages',
+              title: 'Advantages',
+              content:
+                '• **Drastic latency reduction**: Redis serves responses in <1ms vs 10–100ms for database queries.\n• **Database offload**: 90–99% of read traffic can be served from cache, protecting the database at scale.\n• **Cost reduction**: fewer database queries means smaller database instances, lower cloud spend.\n• **Resilience**: a cache can continue serving reads even during brief database outages.\n• **Throughput multiplication**: a single Redis cluster can handle millions of requests per second.',
+            },
+            {
+              id: 'disadvantages',
+              title: 'Disadvantages',
+              content:
+                '• **Stale data**: cached data can become inconsistent with the database during the TTL window.\n• **Cache invalidation is hard**: Phil Karlton famously called it one of the two hard problems in CS.\n• **Cold start**: after a restart or cache flush, all requests miss the cache and hit the database simultaneously.\n• **Memory is limited**: you cannot cache everything — you must choose which data to cache.\n• **Operational complexity**: running Redis adds another component to monitor, back up, and secure.\n• **Cache stampede**: popular keys expiring simultaneously causes a thundering herd on the database.',
+            },
+            {
+              id: 'interview-questions',
+              title: 'Interview Questions',
+              content:
+                '1. What is the difference between cache-aside and write-through caching?\n2. How do you handle cache invalidation when data is updated? Delete the key, or update it?\n3. What is a cache stampede and how do you prevent it?\n4. How would you cache a user\'s social media feed that changes frequently?\n5. What eviction policy would you choose for a news website? A gaming leaderboard?\n6. How does CDN caching differ from application-level caching?\n7. How do you warm up a cache after a deployment to prevent a cold-start surge?',
+            },
+            {
+              id: 'common-mistakes',
+              title: 'Common Mistakes',
+              content:
+                '• **Caching mutable, user-specific data globally**: caching user A\'s private data where user B can access it is a serious security bug.\n• **Setting TTL too long**: stale data shown to users (e.g., wrong prices, deleted posts).\n• **Setting TTL too short**: cache becomes ineffective; all requests still go to the database.\n• **Forgetting to invalidate on write**: users see outdated data after updating their profile, for example.\n• **Not handling cache misses gracefully**: if Redis is down, the application should fall back to the database, not crash.\n• **Caching computed aggregates without invalidation logic**: caching "total post count" but forgetting to update it when a post is deleted.',
+            },
+            {
+              id: 'best-practices',
+              title: 'Best Practices',
+              content:
+                '• **Prefer cache invalidation (delete) over cache update**: deleting the key on write is simpler and avoids race conditions.\n• **Use namespace prefixes**: `user:123`, `post:456` — prevents key collisions in a shared Redis cluster.\n• **Set a TTL on every key** — no TTL means the cache grows forever until it runs out of memory.\n• **Use Redis Cluster for production** — single Redis is a single point of failure; cluster provides sharding and replication.\n• **Monitor cache hit rate** — a hit rate below 80% usually means something is wrong with the caching strategy.\n• **Cache at the right layer**: cache DB query results (fine-grained) or full HTTP responses (coarse-grained, simpler); choose based on how often the data changes.',
+            },
+            {
+              id: 'summary',
+              title: 'Summary',
+              content:
+                '**Caching** is the single highest-ROI optimization in most web systems. A distributed cache like **Redis** sits between app servers and the database, serving repeated reads from memory.\n\nThe three patterns are **cache-aside** (read-lazy, most common), **write-through** (always fresh, slower writes), and **write-behind** (fastest writes, risk of loss).\n\nThe two hard problems: **stale data** (mitigated by short TTLs and invalidation on write) and **cache stampede** (mitigated by locking or probabilistic early expiration).\n\nAlways monitor your **cache hit rate** — it is the single most important metric for a caching layer.',
+            },
+          ],
+        },
+      ],
+    },
+
+    // ── Chapter 2: Data Management ────────────────────────────────────────────
+    {
+      id: 'hld-data',
+      title: 'Data Management at Scale',
+      lessons: [
+        // ── Lesson 4: SQL vs NoSQL ────────────────────────────────────────────
+        {
+          id: 'hld-sql-nosql',
+          title: 'SQL vs NoSQL',
+          description: 'When to use relational databases, document stores, wide-column stores, and graph databases.',
+          difficulty: 'Intermediate',
+          estimatedMinutes: 18,
+          steps: [
+            {
+              id: 'introduction',
+              title: 'Introduction',
+              content:
+                'The database is almost always the hardest component to scale. The first architectural decision is **SQL vs NoSQL**.\n\n**SQL (Relational)** databases (PostgreSQL, MySQL, Aurora) store data in tables with fixed schemas. They enforce ACID transactions and support powerful multi-table joins.\n\n**NoSQL** databases trade some of those guarantees for **flexibility and horizontal scalability**:\n• **Document** (MongoDB, Firestore): JSON documents, flexible schema.\n• **Key-Value** (Redis, DynamoDB): simple get/set by key, extremely fast.\n• **Wide-Column** (Cassandra, HBase): optimized for massive write throughput and time-series data.\n• **Graph** (Neo4j): first-class relationships, social networks, recommendation engines.',
+            },
+            {
+              id: 'problem',
+              title: 'The Problem It Solves',
+              content:
+                'SQL databases are excellent but face two limits at internet scale:\n\n1. **Vertical scaling ceiling**: a single relational DB can handle ~10,000–100,000 reads/s. Beyond that, you must either shard (extremely complex) or choose a DB designed for horizontal scale from day one.\n\n2. **Schema rigidity**: changing the schema of a table with 100 million rows requires a careful migration that may lock the table for hours.\n\nNoSQL databases were designed by companies (Google, Amazon, Facebook) that hit these ceilings and needed databases that could scale horizontally without manual sharding.',
+            },
+            {
+              id: 'analogy',
+              title: 'Real Life Analogy',
+              content:
+                '**SQL is like a spreadsheet** with strict column headers. Every row must have the same columns. If you want to add a column, you must modify the entire spreadsheet.\n\n**NoSQL document store is like a filing cabinet** with folders. Each folder (document) can contain different fields. One folder might have a phone number; another might not. You can change what\'s inside each folder without touching the others.\n\n**Wide-column stores are like a combination**: rows are identified by a key, but each row can have a different set of columns — optimized for writing millions of rows per second.',
+            },
+            {
+              id: 'how-it-works',
+              title: 'How It Works',
+              content:
+                '**SQL: ACID Transactions**\nAtomicity, Consistency, Isolation, Durability. All-or-nothing multi-row operations. Perfect for financial transactions, inventory, and anything requiring strict consistency.\n\n**NoSQL: BASE**\nBasically Available, Soft state, Eventually consistent. Prioritizes availability and partition tolerance over strict consistency. A write may not be immediately visible on all replicas (milliseconds of lag).\n\n**When to use SQL**:\n• Complex relationships requiring JOINs across multiple tables.\n• Financial data, inventory, reservations — anywhere money or correctness is critical.\n• OLAP/analytics queries that aggregate data in complex ways.\n• Your data fits on one machine (start here — premature optimization is real).\n\n**When to use NoSQL**:\n• Massive write throughput (Cassandra: millions of writes/second).\n• Schema changes are frequent and unpredictable (product catalogs, user profiles).\n• Simple access patterns: always access by primary key or a fixed set of indexes.\n• Horizontal scaling is required from day one.',
+            },
+            {
+              id: 'implementation',
+              title: 'Implementation',
+              content: 'Same "user posts" data modeled in SQL (JPA) vs NoSQL (MongoDB):',
+              codeExample:
+`// ── SQL (PostgreSQL via JPA) — normalized, relational ────────────────────────
+
+@Entity
+@Table(name = "posts")
+public class Post {
+    @Id @GeneratedValue
+    private Long id;
+
+    @Column(nullable = false)
+    private String content;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")  // Foreign key — JOIN to users table
+    private User author;
+
+    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL)
+    private List<Comment> comments;  // JOIN to comments table
+
+    private Instant createdAt;
+}
+
+// Query: get top 10 posts with comment counts (multi-table JOIN)
+// SELECT p.*, COUNT(c.id) AS comment_count
+//   FROM posts p LEFT JOIN comments c ON p.id = c.post_id
+//  GROUP BY p.id ORDER BY p.created_at DESC LIMIT 10;
+
+
+// ── NoSQL (MongoDB) — denormalized document ───────────────────────────────────
+
+// Document stored in MongoDB (schemaless — no migration needed)
+{
+  "_id": "post-uuid-123",
+  "content": "Hello world",
+  "author": {
+    "id": "user-uuid-456",
+    "name": "Alice",             // Denormalized — no JOIN needed
+    "avatarUrl": "..."
+  },
+  "commentCount": 42,            // Precomputed — updated on each comment write
+  "tags": ["java", "system-design"],  // Flexible array field
+  "createdAt": "2025-01-15T10:00:00Z"
+}
+
+// Query: top 10 posts — no JOIN, no GROUP BY, single document read
+// db.posts.find().sort({ createdAt: -1 }).limit(10)`,
+              codeLanguage: 'java',
+            },
+            {
+              id: 'advantages',
+              title: 'Advantages',
+              content:
+                '**SQL advantages**: ACID compliance, powerful query language (JOINs, aggregations), well-understood tooling, mature ecosystem, schema enforces data integrity.\n\n**NoSQL advantages**: horizontal scaling built-in, flexible schema (iterate fast without migrations), optimized for specific access patterns, can handle massive write throughput, multi-region replication built-in.',
+            },
+            {
+              id: 'disadvantages',
+              title: 'Disadvantages',
+              content:
+                '**SQL disadvantages**: vertical scaling ceiling, expensive JOINs at scale, schema migrations are risky on large tables, single-leader replication limits write throughput.\n\n**NoSQL disadvantages**: eventual consistency can cause users to see stale data, no standard query language (each DB is different), denormalization causes data duplication and update complexity, limited or no JOIN support, transactions are limited (many NoSQL DBs have added them, but not universally).',
+            },
+            {
+              id: 'interview-questions',
+              title: 'Interview Questions',
+              content:
+                '1. You are designing a banking system. Would you use SQL or NoSQL? Why?\n2. You are designing Twitter. Users have timelines with billions of tweets. What database would you use for the tweet store?\n3. What is eventual consistency? How would you explain it to a non-technical stakeholder?\n4. What is a document database and when would you choose MongoDB over PostgreSQL?\n5. How does Cassandra achieve high write throughput? What does it sacrifice?\n6. Can you use both SQL and NoSQL in the same system? Give an example.\n7. What is a wide-column database and what workloads is it designed for?',
+            },
+            {
+              id: 'common-mistakes',
+              title: 'Common Mistakes',
+              content:
+                '• **Defaulting to NoSQL because it "scales"**: start with PostgreSQL. It scales further than most applications ever reach, and you get ACID for free.\n• **Using a document DB and then needing JOINs**: if you find yourself reconstructing JOINs in application code, you chose the wrong DB.\n• **Ignoring the access pattern**: the access pattern drives the database choice. Cassandra is optimized for "write once, read by time range." Using it as a general-purpose DB produces terrible performance.\n• **Over-normalizing in MongoDB**: embedding related data in the same document (denormalization) is the correct MongoDB pattern — not creating "virtual foreign keys."',
+            },
+            {
+              id: 'best-practices',
+              title: 'Best Practices',
+              content:
+                '• **Define your access patterns before choosing a database** — the access pattern is the primary constraint.\n• **Use PostgreSQL as your default** until you hit a measurable bottleneck.\n• **Polyglot persistence is fine**: use PostgreSQL for transactional data, Redis for caching, Elasticsearch for full-text search, Cassandra for time-series events.\n• **Design around the primary key in NoSQL**: all queries must go through the primary key (or a secondary index). If your access pattern doesn\'t fit, the DB choice is wrong.\n• **Never use MongoDB because you think your schema will change a lot** — PostgreSQL supports JSON columns; you can have both schema flexibility and ACID.',
+            },
+            {
+              id: 'summary',
+              title: 'Summary',
+              content:
+                '**SQL** = ACID, powerful queries, normalization, vertical scaling. Use for anything requiring strict consistency or complex queries.\n\n**NoSQL** = BASE, horizontal scaling, flexible schema, optimized for specific access patterns. Use when SQL genuinely becomes the bottleneck.\n\nThe golden rule: **match the database to the access pattern**, not the other way around. Most systems benefit from **polyglot persistence** — SQL for core transactional data, Redis for caching, Elasticsearch for search, Cassandra for time-series.',
+            },
+          ],
+        },
+
+        // ── Lesson 5: Database Sharding & Replication ─────────────────────────
+        {
+          id: 'hld-sharding',
+          title: 'Database Sharding & Replication',
+          description: 'Horizontally partition data and replicate across nodes for fault tolerance.',
+          difficulty: 'Advanced',
+          estimatedMinutes: 22,
+          steps: [
+            {
+              id: 'introduction',
+              title: 'Introduction',
+              content:
+                '**Replication** copies data across multiple servers (replicas). Reads can be served from any replica; writes go to the primary.\n\n**Sharding** horizontally partitions data across multiple servers (shards). Each shard holds a different subset of data.\n\nThese are complementary strategies:\n• Replication improves **read throughput** and **fault tolerance**.\n• Sharding improves **write throughput** and allows data to exceed a single machine\'s storage.\n\nA production system at scale typically combines both: multiple shards, each with its own primary-replica cluster.',
+            },
+            {
+              id: 'problem',
+              title: 'The Problem It Solves',
+              content:
+                'A single database eventually hits limits:\n• **Storage ceiling**: one machine can hold ~10–100TB. Instagram\'s photos alone exceed petabytes.\n• **Write throughput ceiling**: a single PostgreSQL primary handles ~10,000 writes/second. At 100M users, peak write rate far exceeds this.\n• **Single point of failure**: if the primary crashes, writes are unavailable until failover completes.\n\nReplication solves the fault tolerance and read scale problems. Sharding solves the write scale and storage problems.',
+            },
+            {
+              id: 'analogy',
+              title: 'Real Life Analogy',
+              content:
+                '**Replication** = photocopying a textbook so 30 students can each read a copy simultaneously. Changes to the book (writes) must be made to the master copy first, then photocopied to all student copies.\n\n**Sharding** = splitting a massive encyclopedia into volumes A-F, G-M, N-Z, each stored on a different shelf. To find "Python," you go directly to the N-Z shelf. No single shelf needs to hold the entire encyclopedia.',
+            },
+            {
+              id: 'how-it-works',
+              title: 'How It Works',
+              content:
+                '**Replication**\n• **Primary (Master)**: receives all writes. Replicates to replicas via a write-ahead log (WAL) or binlog.\n• **Replicas (Read Replicas)**: receive replicated data asynchronously (usually <1s lag). Serve read queries.\n• **Failover**: if the primary fails, a replica is promoted to primary (automatic in managed services like RDS Multi-AZ).\n\n**Sharding Strategies**\n\n• **Range sharding**: shard by a range of key values. Shard 1: user IDs 1–1M, Shard 2: 1M–2M. Problem: hot spots if recent IDs are most active.\n• **Hash sharding**: shard_index = hash(key) % num_shards. Distributes evenly but makes range queries expensive.\n• **Directory sharding**: a lookup table maps each key to a shard. Most flexible, but the lookup table itself becomes a bottleneck.\n• **Consistent hashing**: places keys and shards on a virtual ring. Adding a shard only remaps keys adjacent to it — no full data reshuffle. Used by DynamoDB, Cassandra, Redis Cluster.',
+            },
+            {
+              id: 'implementation',
+              title: 'Implementation',
+              content: 'Consistent hashing shard router in Java:',
+              codeExample:
+`import java.util.SortedMap;
+import java.util.TreeMap;
+
+/**
+ * Consistent Hash Ring for database shard routing.
+ * Adding/removing a shard only remaps O(keys/shards) keys.
+ */
+public class ConsistentHashRing {
+
+    private final SortedMap<Integer, String> ring = new TreeMap<>();
+    private final int virtualNodes; // replicas per shard for even distribution
+
+    public ConsistentHashRing(int virtualNodes) {
+        this.virtualNodes = virtualNodes;
+    }
+
+    public void addShard(String shardId) {
+        for (int i = 0; i < virtualNodes; i++) {
+            int hash = hash(shardId + "-vnode-" + i);
+            ring.put(hash, shardId);
+        }
+    }
+
+    public void removeShard(String shardId) {
+        for (int i = 0; i < virtualNodes; i++) {
+            int hash = hash(shardId + "-vnode-" + i);
+            ring.remove(hash);
+        }
+    }
+
+    /** Returns the shard responsible for a given key. */
+    public String getShardFor(String key) {
+        if (ring.isEmpty()) throw new IllegalStateException("No shards available");
+        int hash = hash(key);
+        // Find the first shard clockwise on the ring
+        SortedMap<Integer, String> tail = ring.tailMap(hash);
+        int nodeHash = tail.isEmpty() ? ring.firstKey() : tail.firstKey();
+        return ring.get(nodeHash);
+    }
+
+    private int hash(String key) {
+        return key.hashCode() & 0x7fffffff; // ensure positive
+    }
+
+    // Usage:
+    // ConsistentHashRing ring = new ConsistentHashRing(150); // 150 vnodes each
+    // ring.addShard("shard-1"); ring.addShard("shard-2"); ring.addShard("shard-3");
+    // String shard = ring.getShardFor("user-id-abc123"); // → "shard-2"
+}`,
+              codeLanguage: 'java',
+            },
+            {
+              id: 'advantages',
+              title: 'Advantages',
+              content:
+                '**Replication advantages**: read throughput scales linearly with replicas, automatic failover, cross-region reads for global low-latency.\n\n**Sharding advantages**: write throughput scales linearly with shards, unlimited storage growth, fault isolation (one shard failing only affects its key range).',
+            },
+            {
+              id: 'disadvantages',
+              title: 'Disadvantages',
+              content:
+                '• **Cross-shard queries are slow**: JOINs across shards require scatter-gather (query all shards, merge results in application code).\n• **Rebalancing**: adding a new shard requires moving data — expensive and risky if not handled carefully (consistent hashing minimizes this).\n• **Hot spots**: if data access is skewed (celebrity user accounts, viral posts), one shard gets all the traffic.\n• **Transaction complexity**: ACID transactions that span multiple shards require distributed transaction protocols (2-Phase Commit), which are slow and complex.\n• **Increased operational burden**: more nodes = more hardware, monitoring, and potential failure points.',
+            },
+            {
+              id: 'interview-questions',
+              title: 'Interview Questions',
+              content:
+                '1. What is the difference between sharding and replication? Which solves which problem?\n2. What is a hot spot in a sharded database, and how do you mitigate it?\n3. Explain consistent hashing. Why is it preferred over simple hash-modulo sharding?\n4. How would you shard the users table of a social network with 1 billion users?\n5. What is replication lag and how does it affect application behavior?\n6. How do you handle a cross-shard JOIN query?\n7. What happens to sharding when you add a new shard to a modulo-hash ring?',
+            },
+            {
+              id: 'common-mistakes',
+              title: 'Common Mistakes',
+              content:
+                '• **Sharding too early**: sharding adds enormous complexity. Exhaust vertical scaling, read replicas, and caching first.\n• **Choosing a poor shard key**: a shard key that creates hot spots (e.g., timestamp-based for time-series data where all current writes go to the latest shard) defeats the purpose.\n• **Forgetting cross-shard implications**: application-level JOINs are complex. Design your sharding strategy around your query patterns.\n• **Not planning for rebalancing**: adding a shard requires data migration. Design the migration strategy before launch, not during a crisis.',
+            },
+            {
+              id: 'best-practices',
+              title: 'Best Practices',
+              content:
+                '• **Shard key selection is critical**: choose a high-cardinality key with uniform distribution. User ID (UUID or hash of username) is typically good.\n• **Use virtual nodes (vnodes)** in consistent hashing to prevent uneven distribution when shards have different capacities.\n• **Proxy the sharding logic**: use a dedicated shard proxy layer (Vitess for MySQL, Citus for PostgreSQL) rather than embedding shard routing in every service.\n• **Keep shard count low at first**: start with 2–4 shards. Each shard can be promoted to a new cluster as it fills.\n• **Never shard the session table**: sessions are small and read frequently. They belong in Redis.',
+            },
+            {
+              id: 'summary',
+              title: 'Summary',
+              content:
+                '**Replication** (primary + replicas) scales reads and provides fault tolerance. **Sharding** splits data across multiple nodes, scaling writes and storage.\n\nShard key choice is the most critical decision: pick a key with high cardinality and uniform distribution. **Consistent hashing** minimizes data movement when adding/removing shards.\n\nThe operational cost is high — exhaust all simpler options before sharding. Most applications scale to tens of millions of users without needing to shard their primary database.',
+            },
+          ],
+        },
+
+        // ── Lesson 6: CAP Theorem ─────────────────────────────────────────────
+        {
+          id: 'hld-cap',
+          title: 'CAP Theorem',
+          description: 'Consistency, Availability, and Partition Tolerance — why you can only guarantee two.',
+          difficulty: 'Intermediate',
+          estimatedMinutes: 14,
+          steps: [
+            {
+              id: 'introduction',
+              title: 'Introduction',
+              content:
+                'The **CAP Theorem** (Brewer, 2000) states that a distributed data store can provide at most **two** of these three guarantees simultaneously:\n\n• **C — Consistency**: every read receives the most recent write (or an error).\n• **A — Availability**: every request receives a (non-error) response — not necessarily the most recent data.\n• **P — Partition Tolerance**: the system continues operating even when network messages between nodes are lost or delayed.\n\nIn practice, **network partitions always happen** (cables fail, packets drop, data centers lose connectivity). Therefore, the real design choice is always **CP vs AP** — Consistency vs Availability when a partition occurs.',
+            },
+            {
+              id: 'problem',
+              title: 'The Problem It Solves',
+              content:
+                'When two database nodes (primary and replica) lose network connectivity:\n• **CP choice**: stop accepting writes (or return errors) to prevent stale reads. Users see errors but data is always correct.\n• **AP choice**: keep accepting reads and writes on both sides. Users always get a response, but the two nodes diverge — they must be reconciled when the partition heals.\n\nThe CAP Theorem forces architects to make an **explicit business decision**: is correctness or availability more important for this specific data?',
+            },
+            {
+              id: 'analogy',
+              title: 'Real Life Analogy',
+              content:
+                'Two branches of a bank lose phone connectivity (network partition).\n\n**CP (Consistency over Availability)**: Branch B refuses to process transactions ("our systems are down — please visit Branch A"). Customers are frustrated, but there is no risk of double-spending.\n\n**AP (Availability over Consistency)**: Both branches keep processing. Customer John withdraws from Branch A and Branch B simultaneously. When connectivity is restored, the bank discovers an overdraft and must reconcile the conflict.\n\nDifferent accounts have different requirements: savings account (CP — correctness critical), basic informational lookup (AP — stale data is acceptable).',
+            },
+            {
+              id: 'how-it-works',
+              title: 'How It Works',
+              content:
+                '**CP Systems** (ZooKeeper, etcd, HBase, strong-consistency PostgreSQL)\nDuring a partition: the minority partition (the side that can\'t reach a quorum of nodes) stops serving requests. Clients on the minority partition get errors.\nUse for: distributed locks, configuration management, financial transactions — anything where correctness is non-negotiable.\n\n**AP Systems** (Cassandra, DynamoDB, CouchDB)\nDuring a partition: all nodes continue serving reads and writes. Nodes reconcile when the partition heals using **conflict resolution** (last-write-wins, vector clocks, or application-level merge).\nUse for: shopping carts, user sessions, social media feeds — anything where a stale response is better than an error.\n\n**PACELC Extension**\nCAP only describes behavior during a partition. PACELC adds: even without a partition, there is a tradeoff between **latency** (L) and **consistency** (C). Waiting for all replicas to confirm a write is consistent but slow; acknowledging before all replicas confirm is fast but potentially inconsistent.',
+            },
+            {
+              id: 'implementation',
+              title: 'Implementation',
+              content: 'Cassandra tunable consistency (AP → CP by adjusting quorum level):',
+              codeExample:
+`// Cassandra allows per-query tuning of the CP/AP tradeoff
+// via ConsistencyLevel — a real implementation of PACELC
+
+// ── AP: Available but potentially stale (ONE = fastest, least consistent) ────
+Statement readFast = QueryBuilder
+    .selectFrom("users").column("profile")
+    .whereColumn("user_id").isEqualTo(userId)
+    .build()
+    .setConsistencyLevel(ConsistencyLevel.ONE);  // Ask only 1 replica
+
+// ── CP: Consistent but slower (QUORUM = majority must agree) ─────────────────
+Statement readStrong = QueryBuilder
+    .selectFrom("account_balances").all()
+    .whereColumn("account_id").isEqualTo(accountId)
+    .build()
+    .setConsistencyLevel(ConsistencyLevel.QUORUM); // Majority must respond
+
+// For writes, QUORUM write + QUORUM read = strong consistency
+// because: writeQuorum + readQuorum > replication_factor
+// Example: RF=3, QUORUM=2 → 2+2=4 > 3 → guaranteed to see latest write
+
+// ── PostgreSQL: CP by default, with read replicas as AP reads ────────────────
+// Primary write (CP — durably committed)
+jdbcPrimary.update("UPDATE accounts SET balance = ? WHERE id = ?", newBalance, accountId);
+
+// Replica read (AP — may be milliseconds stale due to replication lag)
+Account account = jdbcReplica.queryForObject(
+    "SELECT * FROM accounts WHERE id = ?",
+    Account.class, accountId
+);`,
+              codeLanguage: 'java',
+            },
+            {
+              id: 'advantages',
+              title: 'Advantages',
+              content:
+                'Understanding CAP provides a **principled framework** for architectural decisions:\n• You can explicitly choose the tradeoff per data type (financial data = CP, user preferences = AP).\n• It prevents over-engineering (trying to achieve all three simultaneously).\n• It guides failure mode planning: CP systems fail with errors; AP systems fail with stale data.',
+            },
+            {
+              id: 'disadvantages',
+              title: 'Disadvantages',
+              content:
+                '• CAP is often **misapplied** — it describes behavior only during network partitions, not during normal operation.\n• The model is **binary and simplified** — real systems have tunable consistency (Cassandra\'s quorum) rather than an absolute choice.\n• **PACELC is more practical** for modern systems that must also reason about latency, but it\'s more complex to explain.',
+            },
+            {
+              id: 'interview-questions',
+              title: 'Interview Questions',
+              content:
+                '1. Explain CAP theorem in plain English. Why can\'t you have all three?\n2. Is Amazon DynamoDB CP or AP? How does its "Eventually Consistent" read option fit?\n3. Is a traditional PostgreSQL database CP or AP?\n4. If you were designing a shopping cart, would you choose CP or AP? Why?\n5. What is eventual consistency? How do you handle conflicts when two nodes diverge?\n6. What is PACELC and how does it extend the CAP theorem?\n7. You have a social media "like count" feature. Is it acceptable for this to be AP? Why?',
+            },
+            {
+              id: 'common-mistakes',
+              title: 'Common Mistakes',
+              content:
+                '• **Saying "CA" databases exist**: CA (consistent + available, no partition tolerance) is only possible in a single-node system. Any distributed system must tolerate partitions.\n• **Treating CAP as a one-time choice**: you can have CP for some operations and AP for others in the same system (different tables, different consistency levels).\n• **Confusing consistency with durability**: CAP consistency means "all nodes see the same data." Durability means "committed data survives crashes." These are different properties.',
+            },
+            {
+              id: 'best-practices',
+              title: 'Best Practices',
+              content:
+                '• **Make the CP/AP decision per data type**, not per system. Financial balances (CP), user avatars (AP).\n• **Prefer AP for user-facing features** where an eventual response with slightly stale data beats an error response.\n• **Design AP systems with conflict resolution in mind**: last-write-wins works for simple data; vector clocks or CRDTs are needed for complex merges.\n• **When choosing CP**: design for graceful degradation — serve a cached response rather than a 500 error when the consistent store is unavailable.',
+            },
+            {
+              id: 'summary',
+              title: 'Summary',
+              content:
+                'The **CAP Theorem** states: during a network partition, a distributed system can be either **consistent** (CP — return errors rather than stale data) or **available** (AP — return data that might be stale).\n\nSince network partitions are unavoidable, the real decision is **CP vs AP**.\n\nMost modern systems are **tunable**: Cassandra lets you choose quorum level per query; PostgreSQL is CP by default but read replicas are AP. Design your consistency requirements per data type, not per system.',
+            },
+          ],
+        },
+      ],
+    },
+
+    // ── Chapter 3: Distributed Systems ───────────────────────────────────────
+    {
+      id: 'hld-distributed',
+      title: 'Distributed Systems',
+      lessons: [
+        // ── Lesson 7: Message Queues ──────────────────────────────────────────
+        {
+          id: 'hld-message-queues',
+          title: 'Message Queues & Event-Driven Architecture',
+          description: 'Kafka, RabbitMQ, async decoupling, fan-out, and event sourcing.',
+          difficulty: 'Intermediate',
+          estimatedMinutes: 20,
+          steps: [
+            {
+              id: 'introduction',
+              title: 'Introduction',
+              content:
+                'A **Message Queue** is a buffer that stores messages between a **producer** (writes events) and a **consumer** (reads and processes events) asynchronously.\n\nTwo paradigms:\n• **Queue (Point-to-Point)**: one consumer processes each message. RabbitMQ, SQS. Used for task distribution.\n• **Topic/Log (Pub-Sub)**: many consumers can independently read the same message stream. Kafka, Kinesis. Used for event streaming.\n\n**Apache Kafka** is the dominant platform for high-throughput event streaming: it stores ordered, immutable logs of events that multiple consumer groups can read independently and replay.',
+            },
+            {
+              id: 'problem',
+              title: 'The Problem It Solves',
+              content:
+                'Without message queues, services call each other synchronously:\n• Service A calls Service B directly (HTTP). If B is slow, A waits and is also slow.\n• If B crashes, A\'s request fails immediately.\n• A sudden spike of 100K orders per second must all be processed NOW — there\'s no buffer.\n• Multiple services (email, analytics, shipping) all need to react to "order placed" — A must call all of them, coupling A to every downstream service.\n\nMessage queues solve all of these: A publishes an event and returns immediately. Downstream services consume at their own pace. Services are decoupled.',
+            },
+            {
+              id: 'analogy',
+              title: 'Real Life Analogy',
+              content:
+                'A restaurant order system.\n\n**Without queue (synchronous)**: the waiter (producer) stands at the kitchen window and waits for the chef (consumer) to finish cooking before going to the next table. If the kitchen is backed up, all waiters are blocked.\n\n**With queue (async)**: the waiter writes the order on a ticket and puts it in a revolving ticket holder (message queue). The chef takes tickets at their own pace. The waiter immediately goes back to serve more customers. If orders spike on Saturday night, tickets accumulate — but nothing crashes. When the kitchen catches up, it works through the backlog.',
+            },
+            {
+              id: 'how-it-works',
+              title: 'How It Works',
+              content:
+                '**Kafka Core Concepts**\n• **Topic**: a named log of events (e.g., `orders`, `user-clicks`, `payment-processed`).\n• **Partition**: each topic is split into ordered partitions for parallelism. A partition is consumed by exactly one consumer in a group at a time.\n• **Offset**: the position of a consumer within a partition. Consumers commit their offset after processing; on restart, they resume from where they left off.\n• **Consumer Group**: a set of consumers sharing work. Kafka distributes partitions across group members.\n• **Retention**: Kafka retains events for a configurable period (7 days default) — consumers can replay historical events.\n\n**Fan-Out Pattern**\nMultiple consumer groups independently consume the same topic. Example: "order-placed" topic consumed by Billing Group, Shipping Group, Analytics Group — all independently, at their own pace, without coupling.',
+            },
+            {
+              id: 'implementation',
+              title: 'Implementation',
+              content: 'Kafka producer and consumer with Spring Kafka:',
+              codeExample:
+`// ── Producer: publish "order placed" event ────────────────────────────────────
+@Service
+public class OrderService {
+
+    private final KafkaTemplate<String, OrderEvent> kafka;
+
+    public Order placeOrder(CreateOrderRequest req) {
+        Order order = orderRepo.save(buildOrder(req));  // DB write first
+
+        // Publish event — returns immediately (async)
+        kafka.send("orders",
+            order.getId(),      // key = order ID (ensures same order → same partition)
+            new OrderEvent(order.getId(), order.getUserId(), order.getTotalAmount())
+        );
+
+        return order;  // Response sent to client before downstream services run
+    }
+}
+
+// ── Consumer Group 1: Billing service ─────────────────────────────────────────
+@Component
+public class BillingConsumer {
+
+    @KafkaListener(topics = "orders", groupId = "billing-service")
+    public void processPayment(OrderEvent event) {
+        paymentService.charge(event.getUserId(), event.getAmount());
+        // If this fails, the offset is NOT committed — Kafka retries automatically
+    }
+}
+
+// ── Consumer Group 2: Shipping service ────────────────────────────────────────
+@Component
+public class ShippingConsumer {
+
+    @KafkaListener(topics = "orders", groupId = "shipping-service")
+    public void createShipment(OrderEvent event) {
+        shippingService.schedulePickup(event.getOrderId());
+        // Runs independently of billing — no coupling
+    }
+}
+
+// ── Consumer Group 3: Analytics ───────────────────────────────────────────────
+@Component
+public class AnalyticsConsumer {
+
+    @KafkaListener(topics = "orders", groupId = "analytics-service",
+                   properties = "auto.offset.reset=earliest")  // Replay from start
+    public void recordMetric(OrderEvent event) {
+        analyticsDb.insert(event);
+    }
+}`,
+              codeLanguage: 'java',
+            },
+            {
+              id: 'advantages',
+              title: 'Advantages',
+              content:
+                '• **Decoupling**: producers don\'t know about consumers. Add a new consumer without touching the producer.\n• **Buffering**: absorbs traffic spikes. Consumers process at a sustainable rate even during peak load.\n• **Fault tolerance**: if a consumer crashes mid-processing, the offset isn\'t committed — the message is reprocessed when it restarts.\n• **Replay**: Kafka retains the log — you can replay events to rebuild a new service\'s state or replay after a bug fix.\n• **Fan-out**: one event → many independent consumers, each doing something different.',
+            },
+            {
+              id: 'disadvantages',
+              title: 'Disadvantages',
+              content:
+                '• **Eventual processing**: the downstream action (email, shipment) happens after the response — users won\'t see it immediately.\n• **Ordering**: Kafka guarantees order within a partition, not globally across partitions. Cross-partition ordering requires careful key design.\n• **Exactly-once semantics is hard**: at-least-once delivery is simple; exactly-once (process each message exactly once, no duplicates) requires idempotent consumers and transactional producers.\n• **Operational complexity**: Kafka clusters require ZooKeeper (or KRaft), broker management, partition rebalancing, and monitoring.\n• **Debugging is harder**: async flows are harder to trace than synchronous call stacks. Distributed tracing (OpenTelemetry) is essential.',
+            },
+            {
+              id: 'interview-questions',
+              title: 'Interview Questions',
+              content:
+                '1. When would you use a message queue instead of a direct HTTP API call between services?\n2. What is the difference between a message queue (RabbitMQ) and a message log (Kafka)? When would you use each?\n3. What is a consumer group and how does it enable parallel processing?\n4. How does Kafka guarantee message order? Is it guaranteed globally or per-partition?\n5. What is at-least-once delivery? What is idempotency and why is it required with at-least-once delivery?\n6. Design a notification system (email, SMS, push) using a message queue.\n7. How would you use Kafka to implement the "inbox" feature in a social media app?',
+            },
+            {
+              id: 'common-mistakes',
+              title: 'Common Mistakes',
+              content:
+                '• **Not designing consumers for idempotency**: at-least-once delivery means a message can be delivered multiple times (e.g., after a consumer crash). Processing it twice must produce the same result as processing it once.\n• **Using a queue for synchronous, user-facing operations**: if the user needs the result immediately, a queue adds unnecessary latency and complexity.\n• **Too many partitions**: each partition requires file handles on brokers. Thousands of partitions can overwhelm the cluster.\n• **Not committing offsets at the right point**: committing before processing means messages can be lost on crash; committing after means duplicates. Choose deliberately.',
+            },
+            {
+              id: 'best-practices',
+              title: 'Best Practices',
+              content:
+                '• **Design consumers to be idempotent** — assume each message will be delivered at least once.\n• **Use partition keys** to guarantee ordering for related events (same order ID → same partition → processed in order).\n• **Use a dead letter queue (DLQ)**: after N failed retries, route poison messages to a DLQ for investigation rather than blocking the queue forever.\n• **Monitor consumer lag** — the difference between the latest offset and the consumer\'s committed offset. Rising lag means consumers are falling behind.\n• **Separate topics by data type**, not by team. `orders`, `payments`, `shipments` — not `team-a-events`.',
+            },
+            {
+              id: 'summary',
+              title: 'Summary',
+              content:
+                '**Message queues** decouple producers from consumers, enabling async processing, traffic buffering, and fan-out patterns.\n\n**Kafka** (log-based, persistent, replay-capable) is the standard for event streaming. **RabbitMQ/SQS** (queue-based, delete-on-consume) is better for task distribution.\n\nDesign consumers to be **idempotent** (safe to process twice), monitor **consumer lag**, and use a **dead letter queue** for failed messages.\n\nAsync architecture trades immediate consistency for resilience and scalability — make sure your product can tolerate eventual processing before adding a queue.',
+            },
+          ],
+        },
+
+        // ── Lesson 8: Microservices ───────────────────────────────────────────
+        {
+          id: 'hld-microservices',
+          title: 'Microservices vs Monolith',
+          description: 'Deployment independence, service boundaries, API gateways, and when NOT to split.',
+          difficulty: 'Intermediate',
+          estimatedMinutes: 18,
+          steps: [
+            {
+              id: 'introduction',
+              title: 'Introduction',
+              content:
+                'A **Monolith** packages all application functionality into one deployable unit. A **Microservices** architecture decomposes the application into small, independently deployable services, each owning its own data.\n\nThe spectrum:\n• **Monolith**: single codebase, single deploy, shared DB.\n• **Modular Monolith**: single deploy but internally well-structured with clear module boundaries — the stepping stone.\n• **Microservices**: independent services, independent deploys, independent databases.\n\nNeither is universally better. The choice depends on team size, deployment frequency, scale requirements, and organizational structure.',
+            },
+            {
+              id: 'problem',
+              title: 'The Problem It Solves',
+              content:
+                'At small scale, a monolith is faster to build and easier to operate. At large scale, it creates problems:\n• A bug in the Payments module requires redeploying the entire application, including Search.\n• The team editing the Orders module and the team editing the User module constantly conflict in the same codebase.\n• The database schema is shared — one team\'s migration can break another team\'s queries.\n• A spike in the Image Processing service starves CPU from the Checkout service.\n\nMicroservices solve these by making each service an independent unit of deployment, scaling, and ownership.',
+            },
+            {
+              id: 'analogy',
+              title: 'Real Life Analogy',
+              content:
+                '**Monolith** = a Swiss Army knife. Everything in one tool. Works great for everyday tasks. But if the bottle opener breaks, you have to return the whole knife.\n\n**Microservices** = a kitchen with specialized tools: a chef\'s knife, a peeler, a can opener, a blender. Each tool is independent. If the blender breaks, you replace only the blender — the chef\'s knife is unaffected. Each tool can be upgraded, replaced, or scaled independently.\n\nBut: coordinating 15 specialized tools in a kitchen is harder than using one Swiss Army knife.',
+            },
+            {
+              id: 'how-it-works',
+              title: 'How It Works',
+              content:
+                '**Microservices core patterns**\n\n• **API Gateway**: the single entry point for all clients. Routes requests to the correct service, handles authentication, rate limiting, and SSL termination. (AWS API Gateway, Kong, Nginx)\n• **Service Discovery**: services register themselves (Consul, Kubernetes Service) so other services can find them without hardcoded IPs.\n• **Inter-service communication**: synchronous via REST/gRPC for request-response, asynchronous via Kafka/RabbitMQ for events.\n• **Database per service**: each service owns its data store. No shared database. Cross-service data queries go through APIs or events.\n• **Circuit Breaker**: if Service B is failing, stop calling it and return a fallback — don\'t let failures cascade. (Resilience4j, Hystrix)\n\n**Domain-Driven Design (DDD) Bounded Contexts**\nService boundaries should align with business domains: UserService, OrderService, PaymentService, NotificationService. Each service models the domain concepts it owns.',
+            },
+            {
+              id: 'implementation',
+              title: 'Implementation',
+              content: 'Circuit breaker + fallback with Resilience4j (Spring Boot):',
+              codeExample:
+`// Resilience4j Circuit Breaker — prevents cascade failures in microservices
+@Service
+public class ProductService {
+
+    private final ProductCatalogClient catalogClient; // HTTP client to another service
+
+    @CircuitBreaker(name = "productCatalog", fallbackMethod = "getProductFallback")
+    @Retry(name = "productCatalog", fallbackMethod = "getProductFallback")
+    @TimeLimiter(name = "productCatalog")
+    public CompletableFuture<Product> getProduct(String productId) {
+        // Call the downstream microservice
+        return CompletableFuture.supplyAsync(
+            () -> catalogClient.fetchProduct(productId)
+        );
+    }
+
+    // Fallback: serve cached/default data when catalog service is down
+    public CompletableFuture<Product> getProductFallback(String productId, Exception ex) {
+        log.warn("Catalog service unavailable, using fallback for {}", productId, ex);
+        return CompletableFuture.completedFuture(
+            cache.getOrDefault(productId, Product.defaultProduct())
+        );
+    }
+}
+
+# application.yml — Circuit Breaker configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      productCatalog:
+        sliding-window-size: 10         # Evaluate last 10 calls
+        failure-rate-threshold: 50      # Open circuit if >50% fail
+        wait-duration-in-open-state: 30s # Wait 30s before trying again
+        permitted-number-of-calls-in-half-open-state: 3
+  retry:
+    instances:
+      productCatalog:
+        max-attempts: 3
+        wait-duration: 200ms
+        retry-exceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException`,
+              codeLanguage: 'java',
+            },
+            {
+              id: 'advantages',
+              title: 'Advantages',
+              content:
+                '• **Independent deployability**: change and deploy one service without touching others.\n• **Technology flexibility**: each service can use the best language, framework, and database for its problem.\n• **Independent scaling**: scale only the service under load (e.g., scale ImageService during photo-heavy events).\n• **Fault isolation**: a crash in the Recommendation service doesn\'t crash the Checkout service.\n• **Team autonomy**: small teams own end-to-end delivery of a service — "you build it, you run it" (Amazon\'s model).',
+            },
+            {
+              id: 'disadvantages',
+              title: 'Disadvantages',
+              content:
+                '• **Distributed systems complexity**: network calls fail, latency adds up, partial failures are common.\n• **Data consistency**: no shared database means cross-service transactions require sagas or eventual consistency.\n• **Operational overhead**: dozens of services require sophisticated CI/CD, monitoring, service mesh, and observability.\n• **Testing complexity**: integration testing across services is significantly harder than testing a monolith.\n• **Latency**: a user request may fan out to 5 services synchronously, each adding latency.\n• **Premature decomposition**: splitting a poorly understood domain into microservices locks in wrong boundaries that are expensive to change.',
+            },
+            {
+              id: 'interview-questions',
+              title: 'Interview Questions',
+              content:
+                '1. What is the difference between a monolith and microservices? When would you choose each?\n2. What is an API Gateway and what responsibilities does it have?\n3. How do you handle a transaction that spans multiple microservices? (Saga pattern)\n4. What is a circuit breaker? How does it prevent cascade failures?\n5. How do microservices communicate? What are the tradeoffs between REST and gRPC?\n6. What is the "database per service" pattern? Why is it important?\n7. How would you split a monolith into microservices? What is a Strangler Fig pattern?',
+            },
+            {
+              id: 'common-mistakes',
+              title: 'Common Mistakes',
+              content:
+                '• **Splitting too early**: microservices for a team of 3 engineers building an MVP is premature. Start with a well-structured monolith.\n• **Shared database**: multiple services sharing a database defeats the purpose — they\'re not independent and any schema change requires coordination.\n• **Chatty services**: Service A calling Service B calling Service C calling Service D in a synchronous chain adds latency at each hop and creates tight coupling.\n• **Wrong service boundaries**: splitting along technical layers (frontend service, backend service, database service) instead of business domains creates coupling.',
+            },
+            {
+              id: 'best-practices',
+              title: 'Best Practices',
+              content:
+                '• **Start with a modular monolith**: enforce strict module boundaries internally. Extract services only when a module has independent scaling or deployment needs.\n• **Define service boundaries using DDD**: one service = one bounded context. Ownership is clear.\n• **Async over sync for cross-service communication** when the result is not needed immediately.\n• **Implement the circuit breaker pattern** everywhere you call another service.\n• **Distributed tracing is mandatory**: use OpenTelemetry + Jaeger/Zipkin to trace requests across services — essential for debugging.\n• **Each service should have its own CI/CD pipeline** and deploy independently without coordinating with other teams.',
+            },
+            {
+              id: 'summary',
+              title: 'Summary',
+              content:
+                '**Monolith** = simple to build and operate at small scale, becomes painful at large scale with large teams.\n\n**Microservices** = independent deployment, scaling, and ownership — at the cost of distributed systems complexity.\n\nThe right starting point for most teams is a **modular monolith** that can be extracted into services when the need is proven.\n\nKey patterns: **API Gateway** (single entry), **database per service** (independence), **circuit breaker** (fault isolation), **event-driven communication** (decoupling), **distributed tracing** (observability).',
+            },
+          ],
+        },
+      ],
+    },
+
+    // ── Chapter 4: Classic HLD Problems ──────────────────────────────────────
+    {
+      id: 'hld-classic',
+      title: 'Classic HLD Problems',
+      lessons: [
+        // ── Lesson 9: Design a URL Shortener ─────────────────────────────────
+        {
+          id: 'hld-url-shortener',
+          title: 'Design a URL Shortener',
+          description: 'System design walkthrough — requirements, capacity, schema, algorithms, and scaling.',
+          difficulty: 'Intermediate',
+          estimatedMinutes: 30,
+          steps: [
+            {
+              id: 'introduction',
+              title: 'Introduction',
+              content:
+                'A **URL Shortener** (like bit.ly, t.co) takes a long URL and returns a short alias. Users sharing `https://bit.ly/3xK9mPQ` are redirected to the full destination URL.\n\nThis is the most common "design an X" interview question — it exercises every HLD concept in a bounded scope:\n• API design\n• Capacity estimation\n• Database schema and choice\n• Short code generation algorithm\n• Caching strategy\n• Horizontal scaling\n• Analytics pipeline\n\nInterviewers expect you to drive the requirements clarification, estimation, and component design yourself.',
+            },
+            {
+              id: 'problem',
+              title: 'The Problem It Solves',
+              content:
+                '**User problem**: long URLs are ugly, hard to remember, break in emails, and exceed character limits on social platforms.\n\n**System problem** (what makes this interesting to design):\n• Short codes must be **unique globally**.\n• Redirects must be **extremely fast** (<10ms) — users experience the redirect as latency before reaching the target.\n• Scale: bit.ly processes ~6 billion redirects per month = ~2,300 redirects/second average, ~10,000/s at peak.\n• Read/write ratio is **~100:1** — mostly redirects, few shortens.\n• Short codes must be **collision-free** even under concurrent creation.',
+            },
+            {
+              id: 'analogy',
+              title: 'Real Life Analogy',
+              content:
+                'A coat check at a venue. You hand in your coat (long URL) and receive a numbered ticket (short code). When you return the ticket, the attendant looks up your coat and returns it (redirect).\n\n• The ticket numbers must be unique (no two people get the same number).\n• Looking up the coat from the number must be instant — the attendant doesn\'t search every rack, they go directly to the numbered slot.\n• Most people are checking coats in/out (read-heavy), few are registering new coats (writes).',
+            },
+            {
+              id: 'how-it-works',
+              title: 'How It Works',
+              content:
+                '**Step 1 — Clarify Requirements**\n• Shorten a URL (POST /shorten) → returns short code.\n• Redirect: GET /{code} → 301/302 to original URL.\n• Custom aliases? Expiry? Analytics? (Assume: yes, yes, basic click counts).\n\n**Step 2 — Capacity Estimation**\n• Write: 100M new URLs/day = ~1,200/s.\n• Read: 10B redirects/day = ~115,000/s.\n• Short code: 7 characters (a-z, A-Z, 0-9) = 62^7 ≈ 3.5 trillion combinations.\n• Storage: 100M URLs/day × 365 × 5 years × 500B/URL ≈ 90TB over 5 years.\n\n**Step 3 — Short Code Generation**\n• **Option A — Counter + Base62 encoding**: a global counter (auto-increment DB or distributed counter like Redis INCR) converts to Base62. Predictable but sequential codes leak creation order.\n• **Option B — Random + collision check**: generate 7 random Base62 chars, check uniqueness in DB. Simple but collision probability grows as table fills.\n• **Option C — MD5/SHA hash of URL + truncate**: hash the long URL, take first 7 chars. Fast, reproducible, but collisions possible for different URLs.\n\n**Step 4 — Redirect: 301 vs 302**\n• **301 (Permanent)**: browser caches the redirect — reduces server load but breaks analytics (subsequent redirects bypass the server).\n• **302 (Temporary)**: browser always calls the server — analytics are accurate but more server load. Use 302 for analytics-enabled shorteners.',
+            },
+            {
+              id: 'implementation',
+              title: 'Implementation',
+              content: 'URL shortener core service with Redis caching and Base62:',
+              codeExample:
+`// ── Base62 encoder for URL-safe short codes ───────────────────────────────────
+public class Base62 {
+    private static final String CHARS =
+        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+    public static String encode(long number) {
+        StringBuilder sb = new StringBuilder();
+        while (number > 0) {
+            sb.append(CHARS.charAt((int)(number % 62)));
+            number /= 62;
+        }
+        return sb.reverse().toString();
+    }
+}
+
+// ── Short URL service: counter-based generation ───────────────────────────────
+@Service
+public class UrlShortenerService {
+
+    private final UrlRepository db;
+    private final StringRedisTemplate redis;
+
+    // Redis atomic counter — unique globally across all instances
+    private static final String COUNTER_KEY = "url:counter";
+    private static final Duration REDIRECT_CACHE_TTL = Duration.ofDays(1);
+
+    public String shorten(String longUrl, String customAlias) {
+        if (customAlias != null) {
+            return saveUrl(customAlias, longUrl);
+        }
+        // Atomic increment — no two instances get the same value
+        long id = redis.opsForValue().increment(COUNTER_KEY);
+        String code = Base62.encode(id);    // e.g., 1234567 → "5Zr3k"
+        return saveUrl(code, longUrl);
+    }
+
+    @Transactional
+    private String saveUrl(String code, String longUrl) {
+        if (db.existsByCode(code)) {
+            throw new CodeConflictException("Code already taken: " + code);
+        }
+        db.save(new ShortUrl(code, longUrl, Instant.now()));
+        return "https://sho.rt/" + code;
+    }
+
+    // ── Redirect: cache-aside for maximum speed ───────────────────────────────
+    public String getLongUrl(String code) {
+        // 1. Check Redis (sub-millisecond)
+        String cached = redis.opsForValue().get("url:" + code);
+        if (cached != null) return cached;
+
+        // 2. DB lookup (10–20ms)
+        ShortUrl url = db.findByCode(code)
+                         .orElseThrow(UrlNotFoundException::new);
+
+        // 3. Populate cache (TTL = 24h)
+        redis.opsForValue().set("url:" + code, url.getLongUrl(), REDIRECT_CACHE_TTL);
+        return url.getLongUrl();
+    }
+}
+
+// ── Controller: 302 redirect for analytics ───────────────────────────────────
+@RestController
+public class RedirectController {
+    @GetMapping("/{code}")
+    public ResponseEntity<Void> redirect(@PathVariable String code) {
+        String longUrl = urlService.getLongUrl(code);
+        analyticsQueue.publish(new ClickEvent(code, Instant.now())); // async
+        return ResponseEntity.status(302)
+                             .location(URI.create(longUrl))
+                             .build();
+    }
+}`,
+              codeLanguage: 'java',
+            },
+            {
+              id: 'advantages',
+              title: 'Advantages',
+              content:
+                '• The **counter-based + Base62** approach is collision-free by design — each ID is globally unique.\n• **Redis caching** of redirect lookups makes the 99%+ read workload sub-millisecond.\n• **Async analytics publishing** (Kafka/SQS) keeps the redirect path fast even under heavy analytics load.\n• The architecture is **horizontally scalable**: stateless app servers behind a load balancer, shared Redis counter, shared DB.',
+            },
+            {
+              id: 'disadvantages',
+              title: 'Disadvantages',
+              content:
+                '• **Redis counter is a single point of failure**: if Redis goes down, URL creation fails. Mitigate: Redis HA cluster, or pre-allocate blocks of IDs to each app server (ranges).\n• **Sequential codes are guessable**: IDs encoded in sequence can be enumerated. Shuffle the encoding or add a random salt for privacy-sensitive use cases.\n• **Database is still the write bottleneck** at extreme scale — shard by short code prefix.\n• **Hot URLs**: a viral link may get millions of redirects per second. Pin it in Redis with no TTL and use Redis cluster.',
+            },
+            {
+              id: 'interview-questions',
+              title: 'Interview Questions',
+              content:
+                '1. How do you generate a unique short code? Compare hash-based, counter-based, and random approaches.\n2. Why use 302 instead of 301? When would you use each?\n3. How do you handle the case where two users try to shorten the same long URL simultaneously?\n4. How would you design the analytics pipeline to track clicks without slowing down redirects?\n5. The system needs to support 1 million URL creations per second. How does your architecture change?\n6. How do you handle URL expiry? What happens to the DB and cache entries for expired URLs?\n7. Design the database schema for the URL shortener.',
+            },
+            {
+              id: 'common-mistakes',
+              title: 'Common Mistakes',
+              content:
+                '• **Not clarifying requirements first**: jumping to implementation before establishing scale (writes/s, reads/s), features (custom aliases, expiry), and consistency requirements.\n• **Skipping capacity estimation**: interviewers expect numbers — codes needed (62^7), storage (100M × 500B = 50GB/year), read QPS.\n• **Using 301 redirect**: correct for SEO, wrong for analytics — subsequent visits bypass your server.\n• **Blocking the redirect path with analytics**: recording the click synchronously adds latency to every redirect. Publish to Kafka asynchronously.\n• **Not considering hot-key problem**: a single viral URL can saturate a cache node — use local in-memory cache on each app server for top URLs.',
+            },
+            {
+              id: 'best-practices',
+              title: 'Best Practices',
+              content:
+                '• **Always start with requirements clarification** in HLD interviews — it shows structured thinking.\n• **Do back-of-envelope estimation before drawing architecture** — it constrains your choices.\n• Explain your **short code generation choice explicitly** — counter vs random vs hash, and their tradeoffs.\n• **Cache the hot path aggressively**: the redirect endpoint is 100x more frequent than the shorten endpoint — optimize it disproportionately.\n• **Design for failure**: what happens if Redis is down? If the DB is slow? Good candidates answer these without being asked.',
+            },
+            {
+              id: 'summary',
+              title: 'Summary',
+              content:
+                'A URL shortener demonstrates: **capacity estimation**, **unique code generation** (counter + Base62 is simplest and collision-free), **cache-aside** (Redis for hot redirects), **async analytics** (Kafka for click events), and **horizontal scaling** (stateless app servers).\n\n**Key numbers**: 7 Base62 chars = 3.5 trillion codes; cache hit rate should be >95% for popular links; redirect must be <10ms end-to-end.\n\nIn an interview, always: clarify → estimate → design API → choose DB → design components → identify bottlenecks → scale.',
+            },
+          ],
+        },
+
+        // ── Lesson 10: Design a Social Media Feed ────────────────────────────
+        {
+          id: 'hld-news-feed',
+          title: 'Design a Social Media Feed',
+          description: 'Fan-out on write vs read, ranking, pagination, and feed generation at scale.',
+          difficulty: 'Advanced',
+          estimatedMinutes: 35,
+          steps: [
+            {
+              id: 'introduction',
+              title: 'Introduction',
+              content:
+                'The **News Feed** (Twitter timeline, Facebook feed, Instagram feed) is the core product feature of social networks. When a user opens the app, they see a ranked, personalized list of posts from people they follow.\n\nThis is one of the most challenging system design problems because it sits at the intersection of:\n• Massive scale (Twitter: 300M users, 500M tweets/day)\n• Strict latency requirements (<500ms to load the feed)\n• Real-time freshness (new posts should appear quickly)\n• Personalized ranking (not just chronological)\n• Write amplification: one tweet by a celebrity with 50M followers means 50M feed entries to update',
+            },
+            {
+              id: 'problem',
+              title: 'The Problem It Solves',
+              content:
+                'The naive approach — "when a user opens the feed, query all posts from all people they follow, sort by time, paginate" — breaks at scale:\n• A user following 1,000 accounts: join 1,000 result sets, sort, paginate. At 300M users × 500ms = catastrophic DB load.\n• A celebrity with 50M followers posts: 50M users need to see it quickly.\n\nThe core tradeoff: do the work at **write time** (fan-out on write) or at **read time** (fan-out on read)?',
+            },
+            {
+              id: 'analogy',
+              title: 'Real Life Analogy',
+              content:
+                '**Fan-out on write** (push model) = a newspaper publisher prints and delivers a copy to every subscriber\'s doorstep the moment the issue is ready. When you wake up, your copy is already there — instant read. But printing 50 million copies is expensive.\n\n**Fan-out on read** (pull model) = the publisher puts one copy in a central library. When you want to read, you go to the library, find the papers from all journalists you follow, and compile them yourself. Cheap to publish, expensive to read.\n\n**Hybrid**: pre-deliver newspapers to normal subscribers (push); for VIP readers with thousands of subscriptions, do it on demand at read time (pull).',
+            },
+            {
+              id: 'how-it-works',
+              title: 'How It Works',
+              content:
+                '**Fan-out on Write (Push)**\nWhen Alice posts a tweet:\n1. Write the tweet to the Tweets table.\n2. For each of Alice\'s N followers, insert Alice\'s tweet ID into their feed cache (Redis sorted set, keyed by timestamp).\n3. When a follower opens their feed, read from their pre-built cache — instant.\n\nPros: reads are O(1). Cons: a celebrity with 50M followers posting causes 50M cache writes (write amplification).\n\n**Fan-out on Read (Pull)**\nWhen Bob opens his feed:\n1. Fetch IDs of all accounts Bob follows.\n2. Query each account\'s latest posts.\n3. Merge and sort all results.\n4. Paginate and rank.\n\nPros: no write amplification. Cons: read is slow (fan-out at read time), especially for users following many accounts.\n\n**Hybrid (Twitter\'s approach)**\n• Regular users (< ~1M followers): fan-out on write. Pre-populate followers\' feeds.\n• Celebrity users (> 1M followers): fan-out on read. Don\'t write to 100M feeds — pull from their tweet store at read time and merge into the pre-built feed.\n\n**Feed Ranking**\nChronological was the original model. Modern feeds use ML ranking: engagement signals (likes, comments, shares), freshness, relationship strength, content type.',
+            },
+            {
+              id: 'implementation',
+              title: 'Implementation',
+              content: 'Feed service: hybrid fan-out with Redis sorted sets:',
+              codeExample:
+`// ── Post Tweet → trigger fan-out ─────────────────────────────────────────────
+@Service
+public class TweetService {
+
+    private final TweetRepository tweetRepo;
+    private final KafkaTemplate<String, TweetEvent> kafka;
+
+    public Tweet post(String userId, String content) {
+        Tweet tweet = tweetRepo.save(new Tweet(userId, content, Instant.now()));
+
+        // Publish event — fan-out worker consumes this asynchronously
+        kafka.send("tweets", new TweetEvent(tweet.getId(), userId, tweet.getCreatedAt()));
+        return tweet;
+    }
+}
+
+// ── Fan-out worker: populate followers' feeds (Kafka consumer) ────────────────
+@Component
+public class FeedFanoutWorker {
+
+    private final FollowerRepository followers;
+    private final StringRedisTemplate redis;
+    private static final int MAX_FEED_SIZE = 800; // Keep last 800 items in cache
+
+    @KafkaListener(topics = "tweets", groupId = "feed-fanout")
+    public void fanOut(TweetEvent event) {
+        // Skip fan-out for celebrities (>1M followers) — handled at read time
+        long followerCount = followers.countByUserId(event.getAuthorId());
+        if (followerCount > 1_000_000) return;
+
+        // Push tweet ID to each follower's feed (sorted set, score = timestamp)
+        List<String> followerIds = followers.findFollowerIds(event.getAuthorId());
+        for (String followerId : followerIds) {
+            String feedKey = "feed:" + followerId;
+            double score = event.getCreatedAt().toEpochMilli();
+            redis.opsForZSet().add(feedKey, event.getTweetId(), score);
+            // Trim to keep feed from growing forever
+            redis.opsForZSet().removeRange(feedKey, 0, -(MAX_FEED_SIZE + 1));
+        }
+    }
+}
+
+// ── Feed read: hybrid model ───────────────────────────────────────────────────
+@Service
+public class FeedService {
+
+    private final StringRedisTemplate redis;
+    private final TweetRepository tweets;
+    private final FollowerRepository followers;
+
+    public List<Tweet> getFeed(String userId, int page, int pageSize) {
+        String feedKey = "feed:" + userId;
+        int start = page * pageSize;
+        int end = start + pageSize - 1;
+
+        // 1. Get pre-built feed from Redis (covers non-celebrity tweets)
+        Set<String> tweetIds = redis.opsForZSet()
+            .reverseRange(feedKey, start, end);  // Newest first
+
+        // 2. Fetch celebrity tweets at read time and merge
+        List<String> followedCelebrities = followers.getCelebrityFollows(userId);
+        List<Tweet> celebTweets = followedCelebrities.stream()
+            .flatMap(celebId -> tweets.findLatestByUser(celebId, 20).stream())
+            .collect(toList());
+
+        // 3. Merge, de-duplicate, sort by timestamp, paginate
+        List<Tweet> feedTweets = fetchAndMerge(tweetIds, celebTweets);
+        feedTweets.sort(comparing(Tweet::getCreatedAt).reversed());
+        return feedTweets.subList(start, Math.min(end + 1, feedTweets.size()));
+    }
+}`,
+              codeLanguage: 'java',
+            },
+            {
+              id: 'advantages',
+              title: 'Advantages',
+              content:
+                '• **Hybrid approach** gives fast reads for most users while handling celebrity write amplification gracefully.\n• **Redis sorted sets** are perfectly suited for time-ordered feeds: O(log N) insert, O(log N) range query.\n• **Pre-computed feeds** mean P99 read latency stays under 100ms even at massive scale.\n• **Asynchronous fan-out** via Kafka means posting a tweet is always fast, regardless of follower count.',
+            },
+            {
+              id: 'disadvantages',
+              title: 'Disadvantages',
+              content:
+                '• **Feed staleness**: fan-out is async — a tweet may take seconds to appear in some followers\' feeds.\n• **Storage cost**: storing 800 tweets per user × 300M users = 240 billion Redis entries.\n• **Merge complexity**: combining pre-built feeds with celebrity pull-feeds requires careful deduplication and sorting.\n• **Feed reconstruction**: if a tweet is deleted, it must be removed from potentially millions of pre-built feeds.\n• **Ranking**: chronological merge is simple; ML-based ranking requires fetching more candidates than shown and scoring them — adding latency.',
+            },
+            {
+              id: 'interview-questions',
+              title: 'Interview Questions',
+              content:
+                '1. What is fan-out on write vs fan-out on read? What are the tradeoffs?\n2. How does Twitter handle celebrities with 50M followers posting? (Hybrid model)\n3. How would you store a user\'s feed in Redis? What data structure?\n4. How do you handle feed updates when a user is followed by 100M people?\n5. How do you paginate a feed that is constantly being updated?\n6. How would you add ML-based ranking to a chronological feed?\n7. A user deletes a tweet. How do you remove it from all followers\' pre-built feeds?',
+            },
+            {
+              id: 'common-mistakes',
+              title: 'Common Mistakes',
+              content:
+                '• **Choosing fan-out on write for everyone**: write amplification for celebrities (100M followers posting simultaneously) would overwhelm the fan-out workers and Redis.\n• **Not capping feed size**: an unbounded Redis sorted set grows forever. Cap at ~800–1,000 entries and reconstruct older history from the DB on demand.\n• **Synchronous fan-out**: blocking the tweet POST while writing to millions of feeds makes posting take seconds. Always async via Kafka.\n• **Ignoring the delete problem**: deleted tweets in pre-built feeds are a correctness issue — filter deleted IDs at read time as a safety net.',
+            },
+            {
+              id: 'best-practices',
+              title: 'Best Practices',
+              content:
+                '• Use **Redis sorted sets** (ZADD, ZREVRANGE) for pre-built feeds — the score is the epoch timestamp.\n• **Threshold-based hybrid**: pick a follower count threshold (e.g., 1M) above which you switch from push to pull.\n• **Cache celebrity tweet lists** separately with a short TTL (5–10s) — they\'re read extremely frequently.\n• **Cursor-based pagination** instead of offset — offset-based pagination breaks when new items are inserted.\n• **Read-repair on feed miss**: if a user\'s feed cache is empty (cold start, TTL expired), rebuild it from the DB asynchronously and return a partial result immediately.',
+            },
+            {
+              id: 'summary',
+              title: 'Summary',
+              content:
+                'A social media feed requires choosing between **fan-out on write** (fast reads, write amplification) and **fan-out on read** (slow reads, no amplification). The production answer is a **hybrid**: push to regular-follower feeds asynchronously; pull celebrity posts at read time.\n\nStorage: **Redis sorted sets** keyed per user, scored by timestamp, capped at ~800 entries.\n\nThe key bottleneck to address in interviews: **celebrity problem** (write amplification), **feed latency** (<500ms target), and **eventual consistency** (async fan-out means brief staleness).',
+            },
+          ],
+        },
+      ],
+    },
+  ],
+};
+
 // ─── Exports ──────────────────────────────────────────────────────────────────
 
-export const TRACKS: Track[] = [dsaTrack, lldTrack];
+export const TRACKS: Track[] = [dsaTrack, lldTrack, hldTrack];
 
 export function getTrackById(id: string): Track | undefined {
   return TRACKS.find((t) => t.id === id);
