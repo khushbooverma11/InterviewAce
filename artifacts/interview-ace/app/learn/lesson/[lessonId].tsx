@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -281,6 +281,16 @@ function StepCard({
   const colors = useColors();
   const [open, setOpen] = useState(initiallyOpen);
   const [selectedLang, setSelectedLang] = useState<Lang>('java');
+  const [copied, setCopied] = useState(false);
+
+  const copyCode = useCallback((code: string) => {
+    if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(code).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1800);
+      }).catch(() => {});
+    }
+  }, []);
 
   const hasMultiLang = !!(step.codeExamples);
   const availableLangs: Lang[] = hasMultiLang
@@ -354,12 +364,28 @@ function StepCard({
                 { backgroundColor: '#0D1117', borderColor: colors.border },
               ]}
             >
-              <LanguageTabs
-                available={availableLangs}
-                selected={activeLang}
-                onSelect={setSelectedLang}
-                accentColor={trackColor}
-              />
+              <View style={styles.codeBlockHeader}>
+                <LanguageTabs
+                  available={availableLangs}
+                  selected={activeLang}
+                  onSelect={setSelectedLang}
+                  accentColor={trackColor}
+                />
+                {Platform.OS === 'web' && activeCode && (
+                  <TouchableOpacity
+                    onPress={() => copyCode(activeCode)}
+                    style={[
+                      styles.copyButton,
+                      { borderColor: copied ? trackColor : '#30363d' },
+                    ]}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.copyButtonText, { color: copied ? trackColor : '#8b949e' }]}>
+                      {copied ? '✓ Copied' : 'Copy'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
               <View style={[styles.codeDivider, { backgroundColor: colors.border }]} />
               {activeCode && <SyntaxHighlight code={activeCode} lang={activeLang} />}
             </View>
@@ -621,6 +647,22 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     overflow: 'hidden',
+  },
+  codeBlockHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  copyButton: {
+    marginRight: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  copyButtonText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
   codeDivider: { height: StyleSheet.hairlineWidth },
 

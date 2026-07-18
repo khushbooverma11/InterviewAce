@@ -1,3 +1,13 @@
+import {
+  lspLesson, ispLesson,
+  factoryMethodLesson, abstractFactoryLesson, builderLesson, prototypeLesson,
+  adapterLesson, bridgeLesson, compositeLesson, decoratorLesson,
+  facadeLesson, flyweightLesson, proxyLesson,
+  chainOfResponsibilityLesson, commandLesson, iteratorLesson,
+  mediatorLesson, mementoLesson, stateLesson,
+  templateMethodLesson, visitorLesson,
+} from './design-patterns-data';
+
 export interface MultiLangCode {
   java?: string;
   cpp?: string;
@@ -1172,9 +1182,9 @@ public:
 class PaymentProcessor:
     def process(self, payment_type: str, amount: float) -> None:
         if payment_type == "credit":
-            print(f"Credit: ${amount}")
+            print(f"Credit: \${amount}")
         elif payment_type == "paypal":
-            print(f"PayPal: ${amount}")
+            print(f"PayPal: \${amount}")
         # Every new type forces a modification here
 
 
@@ -1192,7 +1202,7 @@ class CreditCardPayment(PaymentMethod):
         self._card = card_number
 
     def charge(self, amount: float) -> None:
-        print(f"Charging ${amount} to card {self._card}")
+        print(f"Charging \${amount} to card {self._card}")
 
     def get_name(self) -> str:
         return "Credit Card"
@@ -1203,7 +1213,7 @@ class PayPalPayment(PaymentMethod):
         self._email = email
 
     def charge(self, amount: float) -> None:
-        print(f"PayPal {self._email}: sending ${amount}")
+        print(f"PayPal {self._email}: sending \${amount}")
 
     def get_name(self) -> str:
         return "PayPal"
@@ -1428,12 +1438,14 @@ class UserService:
             { id: 'summary', title: 'Summary', content: '**DIP in one line**: depend on abstractions, not concretions.\n\n**How**: define an interface; inject the concrete implementation from outside.\n\n**Key benefit**: testability — swap the real DB for an in-memory mock in tests.\n\n**Common tools**: constructor injection, DI containers (Spring, Guice, Python\'s `dependency-injector`).\n\n**Pitfall**: creating interfaces for everything, including stable utilities that will never change.' },
           ],
         },
+        lspLesson,
+        ispLesson,
       ],
     },
-    // ── Chapter 2: Design Patterns ─────────────────────────────────────────────
+    // ── Chapter 2: Creational Patterns ─────────────────────────────────────────────
     {
-      id: 'lld-patterns',
-      title: 'Design Patterns',
+      id: 'lld-creational',
+      title: 'Creational Patterns',
       lessons: [
         // ── Singleton ─────────────────────────────────────────────────────────
         {
@@ -1605,6 +1617,36 @@ def get_logger() -> logging.Logger:
             { id: 'summary', title: 'Summary', content: '**Singleton in one line**: one instance, global access point.\n\n**When to use**: loggers, config, connection pools, thread pools.\n\n**Thread safety**: eager init (simplest) or double-checked locking with volatile.\n\n**Pitfalls**: hidden global state, testing difficulty, over-use as a service locator.\n\n**Modern alternative**: DI containers that manage singleton scope without global state.' },
           ],
         },
+        factoryMethodLesson,
+        abstractFactoryLesson,
+        builderLesson,
+        prototypeLesson,
+      ],
+    },
+    // ── Chapter 3: Structural Patterns ────────────────────────────────────────
+    {
+      id: 'lld-structural',
+      title: 'Structural Patterns',
+      lessons: [
+        adapterLesson,
+        bridgeLesson,
+        compositeLesson,
+        decoratorLesson,
+        facadeLesson,
+        flyweightLesson,
+        proxyLesson,
+      ],
+    },
+    // ── Chapter 4: Behavioral Patterns ────────────────────────────────────────
+    {
+      id: 'lld-behavioral',
+      title: 'Behavioral Patterns',
+      lessons: [
+        chainOfResponsibilityLesson,
+        commandLesson,
+        iteratorLesson,
+        mediatorLesson,
+        mementoLesson,
         // ── Observer ──────────────────────────────────────────────────────────
         {
           id: 'lld-observer',
@@ -1786,12 +1828,12 @@ class PriceAlertObserver(StockObserver):
 
     def on_price_change(self, symbol: str, price: float) -> None:
         if price > self._threshold:
-            print(f"ALERT: {symbol} hit ${price:.2f}!")
+            print(f"ALERT: {symbol} hit \${price:.2f}!")
 
 
 class PriceLoggerObserver(StockObserver):
     def on_price_change(self, symbol: str, price: float) -> None:
-        print(f"[LOG] {symbol} = ${price:.2f}")
+        print(f"[LOG] {symbol} = \${price:.2f}")
 
 
 # Usage
@@ -1809,6 +1851,7 @@ market.set_price("AAPL", 215.5)   # both observers notified`,
             { id: 'summary', title: 'Summary', content: '**Observer in one line**: Subject notifies all registered Observers when its state changes.\n\n**Key roles**: Subject (observable), Observer interface, Concrete Observers.\n\n**Classic examples**: stock price alerts, GUI event listeners, reactive streams, MVC model updates.\n\n**Pitfalls**: memory leaks from forgotten unsubscriptions, cascade updates, concurrent modification.\n\n**Modern descendants**: RxJS Observables, Java EventListeners, Node.js EventEmitter.' },
           ],
         },
+        stateLesson,
         // ── Strategy ──────────────────────────────────────────────────────────
         {
           id: 'lld-strategy',
@@ -2006,9 +2049,11 @@ print(sorter.sort([5, 3, 8, 1]))   # [1, 3, 5, 8]`,
             { id: 'summary', title: 'Summary', content: '**Strategy in one line**: encapsulate algorithms behind a common interface and swap them at runtime.\n\n**Key roles**: Context (delegates), Strategy interface (contract), Concrete Strategies (algorithms).\n\n**Classic examples**: sort algorithms, payment methods, compression codecs, discount rules, route planning.\n\n**Benefit over if-else**: new behavior = new class, not a modified condition.\n\n**Pitfall**: over-using it when a simple function or enum would suffice.' },
           ],
         },
+        templateMethodLesson,
+        visitorLesson,
       ],
     },
-    // ── Chapter 3: Classic LLD Problems ────────────────────────────────────────
+    // ── Chapter 5: Classic LLD Problems ────────────────────────────────────────
     {
       id: 'lld-classic',
       title: 'Classic LLD Problems',

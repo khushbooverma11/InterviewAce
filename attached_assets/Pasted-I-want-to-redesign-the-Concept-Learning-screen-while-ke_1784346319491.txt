@@ -1,0 +1,183 @@
+I want to redesign the Concept/Learning screen while keeping the existing navigation, progress tracking, completion logic, backend APIs, and database schema intact.
+
+Do NOT redesign the whole app. Only improve the learning content experience.
+
+1. Content Structure
+
+Every concept (Design Pattern, SOLID, Java, DSA, LLD, HLD etc.) must follow this exact structure:
+
+1. Introduction
+2. The Problem It Solves
+3. Real Life Analogy
+4. How It Works
+5. Implementation
+6. Advantages
+7. Disadvantages
+8. Interview Questions
+9. Common Mistakes
+10. Best Practices
+11. Summary
+
+Keep the accordion/card UI because it is clean.
+
+Remove the section:
+
+Why Interviewers Ask This
+
+The interview questions should instead appear inside the Interview Questions section.
+
+2. Code Examples
+
+Currently code is available only in JavaScript.
+
+Replace it with language tabs.
+
+Show tabs like:
+
+Java
+C++
+Python
+
+Java should be selected by default.
+
+When the user changes the tab, only the code changes.
+
+Everything else on the page remains the same.
+
+The tabs should look professional and match the app theme.
+
+Example:
+
+----------------------------
+ Java | C++ | Python
+----------------------------
+
+<code here>
+
+Do NOT navigate to another screen.
+
+Do NOT reload the page.
+
+3. Content Generation Rules
+
+Every concept should include:
+
+Beginner explanation
+Real world analogy
+Production use case
+Interview explanation
+Complete implementation
+
+For Design Patterns specifically:
+
+Every pattern must explain
+
+Why this pattern exists
+Which problem it solves
+Before vs After
+Real company example
+UML explanation (textual)
+Complete implementation in Java
+Complete implementation in C++
+Complete implementation in Python
+4. Keep Existing UI
+
+Keep:
+
+Progress
+Previous button
+Next button
+Mark Complete
+Step navigation
+Dark theme
+Animations
+
+Do not redesign these.
+
+5. Improve Readability
+
+Improve spacing between sections.
+
+Code blocks should have:
+
+Copy button
+Language label
+Syntax highlighting
+Horizontal scrolling
+
+Large code should never overflow the screen.
+
+6. Performance
+
+Do not load all language code initially.
+
+Lazy load language tabs.
+
+Render only the selected language.
+
+7. Database
+
+Do NOT modify existing tables.
+
+If language-specific code needs storage, extend the existing content model minimally.
+
+Example:
+
+java_code
+cpp_code
+python_code
+
+or
+
+code_examples
+
+language
+content
+concept_id
+
+Choose whichever fits the current architecture.
+
+Do not break existing content.
+
+8. Mobile UX
+
+The screen must work well on phones.
+
+No horizontal overflow except inside code blocks.
+
+Tabs should remain visible.
+
+Code should be readable.
+
+9. Maintain Existing Features
+
+Do NOT remove:
+
+Completion tracking
+Progress
+Bookmarking (if implemented)
+Continue Learning
+Navigation
+API endpoints
+
+Only improve the learning experience.
+
+10. Future Scalability
+
+Design the content renderer so that the same screen can later support:
+
+Java
+DSA
+LLD
+HLD
+System Design
+Design Patterns
+SOLID
+Database
+Spring Boot
+OS
+CN
+
+without changing the UI again.
+
+Use reusable components instead of creating separate pages for every topic.
