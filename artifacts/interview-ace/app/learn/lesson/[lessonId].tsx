@@ -5,7 +5,6 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Animated,
   Platform,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
@@ -14,13 +13,259 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
 import { useLearnProgress } from '@/hooks/useLearnProgress';
 import { getLessonById } from '@/constants/learn-data';
-import type { LessonStep } from '@/constants/learn-data';
+import type { LessonStep, MultiLangCode } from '@/constants/learn-data';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 const DIFFICULTY_COLOR = {
   Beginner: '#10b981',
   Intermediate: '#f59e0b',
   Advanced: '#ef4444',
 } as const;
+
+type Lang = 'java' | 'cpp' | 'python';
+const LANG_ORDER: Lang[] = ['java', 'cpp', 'python'];
+const LANG_LABELS: Record<Lang, string> = { java: 'Java', cpp: 'C++', python: 'Python' };
+
+// ─── Syntax highlighter ───────────────────────────────────────────────────────
+
+const TOKEN_COLORS = {
+  keyword:    '#569CD6',   // blue
+  type:       '#4EC9B0',   // teal
+  string:     '#CE9178',   // salmon
+  comment:    '#6A9955',   // green
+  number:     '#B5CEA8',   // light green
+  annotation: '#DCDCAA',   // yellow
+  default:    '#D4D4D4',   // light gray
+} as const;
+type TokenType = keyof typeof TOKEN_COLORS;
+
+const JAVA_KW = new Set([
+  'abstract','assert','break','case','catch','class','continue','default','do',
+  'else','enum','extends','final','finally','for','if','implements','import',
+  'instanceof','interface','new','null','package','private','protected','public',
+  'record','return','sealed','static','super','switch','synchronized','this',
+  'throw','throws','transient','true','false','try','var','void','volatile','while',
+]);
+const JAVA_TYPES = new Set([
+  'ArrayList','Boolean','Byte','Character','CompletableFuture','Deque','Double',
+  'Duration','Float','HashMap','HashSet','Instant','Integer','LinkedList','List',
+  'Long','Map','Object','Optional','Queue','Set','Short','String','StringBuilder',
+  'TreeMap','TreeSet','UUID','int','long','double','float','boolean','char','byte','short',
+]);
+
+const CPP_KW = new Set([
+  'auto','break','case','catch','class','const','constexpr','continue','default',
+  'delete','do','else','enum','explicit','false','final','for','friend','if',
+  'inline','namespace','new','nullptr','operator','override','private','protected',
+  'public','return','sizeof','static','struct','super','switch','template',
+  'this','throw','true','try','typedef','typename','union','using','virtual',
+  'void','volatile','while','include','define','ifndef','endif','pragma',
+]);
+const CPP_TYPES = new Set([
+  'bool','char','deque','double','float','int','int64_t','list','lock_guard',
+  'long','map','mutex','optional','pair','queue','set','shared_ptr','short',
+  'size_t','stack','string','tuple','uint32_t','unique_ptr','unordered_map',
+  'unordered_set','vector','weak_ptr','wstring',
+]);
+
+const PY_KW = new Set([
+  'False','None','True','and','as','assert','async','await','break','class',
+  'continue','def','del','elif','else','except','finally','for','from','global',
+  'if','import','in','is','lambda','not','or','pass','raise','return','self',
+  'super','try','while','with','yield','abstract','abstractmethod','classmethod',
+  'dataclass','override','property','staticmethod','Protocol',
+]);
+const PY_TYPES = new Set([
+  'ABC','Any','Callable','Counter','DefaultDict','Dict','Generator','Iterator',
+  'List','Mapping','Optional','Protocol','Sequence','Set','Tuple','Type','Union',
+  'bool','dict','float','frozenset','int','list','set','str','tuple',
+]);
+
+function getKw(lang: Lang) {
+  if (lang === 'cpp') return CPP_KW;
+  if (lang === 'python') return PY_KW;
+  return JAVA_KW;
+}
+function getTypes(lang: Lang) {
+  if (lang === 'cpp') return CPP_TYPES;
+  if (lang === 'python') return PY_TYPES;
+  return JAVA_TYPES;
+}
+
+interface Token { text: string; type: TokenType }
+
+function tokenize(code: string, lang: Lang): Token[] {
+  const kw = getKw(lang);
+  const types = getTypes(lang);
+  const tokens: Token[] = [];
+  let i = 0;
+
+  while (i < code.length) {
+    // Block comment /* … */
+    if (code[i] === '/' && code[i + 1] === '*') {
+      const end = code.indexOf('*/', i + 2);
+      const ep = end === -1 ? code.length : end + 2;
+      tokens.push({ text: code.slice(i, ep), type: 'comment' }); i = ep; continue;
+    }
+    // Line comment //
+    if (code[i] === '/' && code[i + 1] === '/') {
+      const end = code.indexOf('\n', i);
+      const ep = end === -1 ? code.length : end;
+      tokens.push({ text: code.slice(i, ep), type: 'comment' }); i = ep; continue;
+    }
+    // Python comment #
+    if (lang === 'python' && code[i] === '#') {
+      const end = code.indexOf('\n', i);
+      const ep = end === -1 ? code.length : end;
+      tokens.push({ text: code.slice(i, ep), type: 'comment' }); i = ep; continue;
+    }
+    // C++ preprocessor #include / #define
+    if (lang === 'cpp' && code[i] === '#') {
+      const end = code.indexOf('\n', i);
+      const ep = end === -1 ? code.length : end;
+      tokens.push({ text: code.slice(i, ep), type: 'keyword' }); i = ep; continue;
+    }
+    // Python triple-quoted string """ or '''
+    if (lang === 'python' && (code.slice(i, i + 3) === '"""' || code.slice(i, i + 3) === "'''")) {
+      const q = code.slice(i, i + 3);
+      const end = code.indexOf(q, i + 3);
+      const ep = end === -1 ? code.length : end + 3;
+      tokens.push({ text: code.slice(i, ep), type: 'string' }); i = ep; continue;
+    }
+    // String literal " or '
+    if (code[i] === '"' || code[i] === "'") {
+      const q = code[i]; let j = i + 1;
+      while (j < code.length && code[j] !== q && code[j] !== '\n') {
+        if (code[j] === '\\') j++;
+        j++;
+      }
+      tokens.push({ text: code.slice(i, j + 1), type: 'string' }); i = j + 1; continue;
+    }
+    // Annotation @
+    if (code[i] === '@') {
+      let j = i + 1;
+      while (j < code.length && /\w/.test(code[j])) j++;
+      tokens.push({ text: code.slice(i, j), type: 'annotation' }); i = j; continue;
+    }
+    // Number (not preceded by a word char)
+    if (/[0-9]/.test(code[i]) && (i === 0 || !/\w/.test(code[i - 1]))) {
+      let j = i;
+      while (j < code.length && /[0-9._xXaAbBcCdDeEfFLl]/.test(code[j])) j++;
+      tokens.push({ text: code.slice(i, j), type: 'number' }); i = j; continue;
+    }
+    // Word
+    if (/[a-zA-Z_]/.test(code[i])) {
+      let j = i;
+      while (j < code.length && /\w/.test(code[j])) j++;
+      const word = code.slice(i, j);
+      const type: TokenType = kw.has(word) ? 'keyword' : types.has(word) ? 'type' : 'default';
+      tokens.push({ text: word, type }); i = j; continue;
+    }
+    tokens.push({ text: code[i], type: 'default' }); i++;
+  }
+  return tokens;
+}
+
+// ─── SyntaxHighlight component ────────────────────────────────────────────────
+
+function SyntaxHighlight({ code, lang }: { code: string; lang: Lang }) {
+  const MONO = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
+  const tokens = tokenize(code, lang);
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      <Text style={{ fontFamily: MONO, fontSize: 12.5, lineHeight: 20, padding: 14 }}>
+        {tokens.map((tok, idx) => (
+          <Text key={idx} style={{ color: TOKEN_COLORS[tok.type] }}>
+            {tok.text}
+          </Text>
+        ))}
+      </Text>
+    </ScrollView>
+  );
+}
+
+// ─── Language tabs ────────────────────────────────────────────────────────────
+
+function LanguageTabs({
+  available,
+  selected,
+  onSelect,
+  accentColor,
+}: {
+  available: Lang[];
+  selected: Lang;
+  onSelect: (l: Lang) => void;
+  accentColor: string;
+}) {
+  return (
+    <View style={tabStyles.row}>
+      <Text style={tabStyles.label}>LANGUAGE:</Text>
+      {available.map((lang) => {
+        const active = lang === selected;
+        return (
+          <TouchableOpacity
+            key={lang}
+            onPress={() => onSelect(lang)}
+            activeOpacity={0.75}
+            style={[
+              tabStyles.tab,
+              active
+                ? { backgroundColor: accentColor, borderColor: accentColor }
+                : tabStyles.inactiveTab,
+            ]}
+          >
+            <Text
+              style={[
+                tabStyles.tabText,
+                active ? { color: '#fff', fontWeight: '700' } : tabStyles.inactiveText,
+              ]}
+            >
+              {LANG_LABELS[lang]}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
+const tabStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexWrap: 'wrap',
+  },
+  label: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#6B7280',
+    letterSpacing: 0.8,
+    marginRight: 2,
+  },
+  tab: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  inactiveTab: {
+    backgroundColor: 'transparent',
+    borderColor: '#374151',
+  },
+  tabText: {
+    fontSize: 12,
+  },
+  inactiveText: {
+    color: '#9CA3AF',
+    fontWeight: '500',
+  },
+});
+
+// ─── StepCard ─────────────────────────────────────────────────────────────────
 
 function StepCard({
   step,
@@ -35,6 +280,12 @@ function StepCard({
 }) {
   const colors = useColors();
   const [open, setOpen] = useState(initiallyOpen);
+  const [selectedLang, setSelectedLang] = useState<Lang>('java');
+
+  const hasMultiLang = !!(step.codeExamples);
+  const availableLangs: Lang[] = hasMultiLang
+    ? LANG_ORDER.filter((l) => !!step.codeExamples![l])
+    : [];
 
   // Parse simple **bold** markdown
   function renderContent(text: string) {
@@ -54,6 +305,11 @@ function StepCard({
       );
     });
   }
+
+  // Determine which lang to show (fallback to first available)
+  const activeLang: Lang =
+    availableLangs.includes(selectedLang) ? selectedLang : availableLangs[0] ?? 'java';
+  const activeCode = hasMultiLang ? step.codeExamples![activeLang] : undefined;
 
   return (
     <View
@@ -90,10 +346,35 @@ function StepCard({
             {renderContent(step.content)}
           </Text>
 
-          {step.codeExample && (
-            <View style={[styles.codeBlock, { backgroundColor: colors.background, borderColor: colors.border }]}>
+          {/* ── Multi-language code block ── */}
+          {hasMultiLang && availableLangs.length > 0 && (
+            <View
+              style={[
+                styles.multiCodeBlock,
+                { backgroundColor: '#0D1117', borderColor: colors.border },
+              ]}
+            >
+              <LanguageTabs
+                available={availableLangs}
+                selected={activeLang}
+                onSelect={setSelectedLang}
+                accentColor={trackColor}
+              />
+              <View style={[styles.codeDivider, { backgroundColor: colors.border }]} />
+              {activeCode && <SyntaxHighlight code={activeCode} lang={activeLang} />}
+            </View>
+          )}
+
+          {/* ── Legacy single-language code block ── */}
+          {!hasMultiLang && step.codeExample && (
+            <View
+              style={[
+                styles.codeBlock,
+                { backgroundColor: colors.background, borderColor: colors.border },
+              ]}
+            >
               {step.codeLanguage && (
-                <View style={[styles.codeLang, { borderBottomColor: colors.border }]}>
+                <View style={[styles.codeLangRow, { borderBottomColor: colors.border }]}>
                   <Feather name="code" size={11} color={colors.mutedForeground} />
                   <Text style={[styles.codeLangText, { color: colors.mutedForeground }]}>
                     {step.codeLanguage}
@@ -101,7 +382,12 @@ function StepCard({
                 </View>
               )}
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <Text style={[styles.codeText, { color: colors.foreground }]}>
+                <Text
+                  style={[
+                    styles.codeText,
+                    { color: colors.foreground, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
+                  ]}
+                >
                   {step.codeExample}
                 </Text>
               </ScrollView>
@@ -112,6 +398,8 @@ function StepCard({
     </View>
   );
 }
+
+// ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function LessonScreen() {
   const { lessonId } = useLocalSearchParams<{ lessonId: string }>();
@@ -135,7 +423,7 @@ export default function LessonScreen() {
   const diffColor = DIFFICULTY_COLOR[lesson.difficulty];
   const completed = isCompleted(lesson.id);
 
-  // Prev / next lesson in same chapter
+  // Prev / next lesson in same track
   const allLessons = track.chapters.flatMap((ch) => ch.lessons);
   const currentIdx = allLessons.findIndex((l) => l.id === lesson.id);
   const prevLesson = currentIdx > 0 ? allLessons[currentIdx - 1] : null;
@@ -150,7 +438,6 @@ export default function LessonScreen() {
       markIncomplete(lesson.id);
     } else {
       markComplete(lesson.id);
-      // Auto-advance to next lesson after a short delay
       if (nextLesson) {
         setTimeout(() => {
           router.replace(`/learn/lesson/${nextLesson.id}`);
@@ -241,7 +528,6 @@ export default function LessonScreen() {
           },
         ]}
       >
-        {/* Prev / Next navigation */}
         <View style={styles.navRow}>
           <TouchableOpacity
             onPress={() => prevLesson && router.replace(`/learn/lesson/${prevLesson.id}`)}
@@ -249,10 +535,7 @@ export default function LessonScreen() {
             activeOpacity={0.7}
             style={[
               styles.navBtn,
-              {
-                backgroundColor: colors.secondary,
-                opacity: prevLesson ? 1 : 0.3,
-              },
+              { backgroundColor: colors.secondary, opacity: prevLesson ? 1 : 0.3 },
             ]}
           >
             <Feather name="arrow-left" size={16} color={colors.foreground} />
@@ -264,10 +547,7 @@ export default function LessonScreen() {
             activeOpacity={0.85}
             style={[
               styles.completeBtn,
-              {
-                backgroundColor: completed ? colors.secondary : trackColor,
-                flex: 1,
-              },
+              { backgroundColor: completed ? colors.secondary : trackColor, flex: 1 },
             ]}
           >
             {completed ? (
@@ -289,10 +569,7 @@ export default function LessonScreen() {
             activeOpacity={0.7}
             style={[
               styles.navBtn,
-              {
-                backgroundColor: colors.secondary,
-                opacity: nextLesson ? 1 : 0.3,
-              },
+              { backgroundColor: colors.secondary, opacity: nextLesson ? 1 : 0.3 },
             ]}
           >
             <Text style={[styles.navBtnText, { color: colors.foreground }]}>Next</Text>
@@ -303,6 +580,8 @@ export default function LessonScreen() {
     </View>
   );
 }
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
@@ -316,87 +595,54 @@ const styles = StyleSheet.create({
   lessonDesc: { fontSize: 14, lineHeight: 20 },
   badges: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 100,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 9, paddingVertical: 4, borderRadius: 100,
   },
   badgeText: { fontSize: 11, fontWeight: '600' },
   divider: { height: StyleSheet.hairlineWidth, marginBottom: 20 },
   steps: { gap: 10 },
-  stepCard: {
-    borderRadius: 14,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  stepHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 14,
-  },
+
+  stepCard: { borderRadius: 14, borderWidth: 1, overflow: 'hidden' },
+  stepHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
   stepNumBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
+    width: 36, height: 36, borderRadius: 10,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
   stepNumText: { fontSize: 12, fontWeight: '800' },
   stepTitle: { flex: 1, fontSize: 15, fontWeight: '600' },
   stepBody: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    paddingTop: 14,
-    gap: 12,
+    paddingHorizontal: 16, paddingBottom: 16,
+    borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 14, gap: 12,
   },
   stepContent: { fontSize: 14, lineHeight: 22 },
-  codeBlock: {
-    borderRadius: 10,
+
+  // Multi-language code block (dark, VS Code-like)
+  multiCodeBlock: {
+    borderRadius: 12,
     borderWidth: 1,
     overflow: 'hidden',
   },
-  codeLang: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+  codeDivider: { height: StyleSheet.hairlineWidth },
+
+  // Legacy single-language code block
+  codeBlock: { borderRadius: 10, borderWidth: 1, overflow: 'hidden' },
+  codeLangRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 12, paddingVertical: 7, borderBottomWidth: StyleSheet.hairlineWidth,
   },
   codeLangText: { fontSize: 11, fontWeight: '600' },
-  codeText: {
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    fontSize: 12,
-    lineHeight: 19,
-    padding: 12,
-  },
-  bottomBar: {
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
+  codeText: { fontSize: 12, lineHeight: 19, padding: 12 },
+
+  bottomBar: { paddingHorizontal: 16, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth },
   navRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   navBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 12,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 14, paddingVertical: 12, borderRadius: 12,
   },
   navBtnText: { fontSize: 13, fontWeight: '600' },
   completeBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 7,
-    paddingVertical: 13,
-    borderRadius: 12,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 7, paddingVertical: 13, borderRadius: 12,
   },
   completeBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 });
